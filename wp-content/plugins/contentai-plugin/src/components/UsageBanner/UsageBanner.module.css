@@ -1,0 +1,26 @@
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.warning { background: #fffbeb; border-bottom: 1px solid #fde68a; }
+.danger  { background: #fef2f2; border-bottom: 1px solid #fecaca; }
+
+.text { flex: 1; }
+.warning .text { color: #92400e; }
+.danger  .text { color: #991b1b; }
+
+.link {
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.warning .link { color: #d97706; }
+.danger  .link { color: #dc2626; }
+.link:hover    { text-decoration: underline; }

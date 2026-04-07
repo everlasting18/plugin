@@ -1,0 +1,57 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.06em;
+}
+
+.count {
+  font-size: 9px;
+  color: #cbd5e1;
+}
+
+.row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  padding: 5px 12px;
+  font-size: 11px;
+  border: 1px solid #e2e8f0;
+  border-radius: 99px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.12s;
+  font-family: inherit;
+  color: #64748b;
+}
+
+.chip:hover:not(:disabled) {
+  border-color: #93c5fd;
+  color: #2563eb;
+}
+
+.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

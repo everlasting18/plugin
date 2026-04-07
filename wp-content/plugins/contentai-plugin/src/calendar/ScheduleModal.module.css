@@ -1,0 +1,78 @@
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
+  animation: fadeIn 0.15s ease; padding: 16px;
+}
+@keyframes fadeIn { from { opacity: 0; } }
+
+.modal {
+  background: #fff; border-radius: 16px; padding: 24px; width: 400px; max-width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
+  animation: slideUp 0.2s ease;
+}
+@keyframes slideUp { from { opacity: 0; transform: translateY(12px); } }
+
+.header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+.title { font-size: 17px; font-weight: 700; color: #1e293b; margin: 0; }
+
+.postInfo {
+  display: flex; align-items: flex-start; gap: 8px; padding: 12px 14px;
+  background: #f8fafc; border-radius: 10px; margin-bottom: 16px;
+}
+.postLabel { font-size: 13px; color: #94a3b8; flex-shrink: 0; padding-top: 1px; }
+.postTitle { font-size: 14px; font-weight: 600; color: #1e293b; line-height: 1.4; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+.dateInfo {
+  display: flex; align-items: center; gap: 8px; font-size: 14px; color: #64748b;
+  margin-bottom: 20px; padding-left: 2px;
+}
+
+.timeSection { margin-bottom: 16px; }
+.timeLabel { font-size: 13px; font-weight: 600; color: #475569; display: block; margin-bottom: 8px; }
+.timePicker { display: flex; align-items: center; gap: 6px; }
+.timeSelect {
+  width: 72px; padding: 10px 12px; font-size: 18px; font-weight: 600;
+  border: 1.5px solid #e2e8f0; border-radius: 10px; background: #fff;
+  color: #1e293b; cursor: pointer; text-align: center;
+  font-family: inherit; appearance: none; -webkit-appearance: none;
+  transition: border-color 0.15s;
+}
+.timeSelect:focus { outline: none; border-color: #818cf8; box-shadow: 0 0 0 3px rgba(129,140,248,0.15); }
+.timeSep { font-size: 22px; font-weight: 700; color: #94a3b8; }
+
+.presets {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 24px; flex-wrap: wrap;
+}
+.presetsLabel { font-size: 12px; color: #94a3b8; margin-right: 4px; }
+.presetBtn {
+  padding: 5px 12px; font-size: 12px; font-weight: 500; border: 1px solid #e5e7eb;
+  border-radius: 6px; background: #fff; color: #64748b; cursor: pointer;
+  transition: all 0.15s; font-family: inherit;
+}
+.presetBtn:hover { border-color: #c7d2fe; color: #4f46e5; background: #eef2ff; }
+.presetBtnActive { border-color: #818cf8; color: #4f46e5; background: #eef2ff; font-weight: 600; }
+
+.actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.cancelBtn {
+  padding: 10px 20px; font-size: 14px; font-weight: 500; border: 1px solid #e5e7eb;
+  border-radius: 10px; background: #fff; color: #64748b; cursor: pointer;
+  font-family: inherit; transition: all 0.15s;
+}
+.cancelBtn:hover { background: #f8fafc; border-color: #cbd5e1; }
+.confirmBtn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 20px; font-size: 14px; font-weight: 600; border: none;
+  border-radius: 10px; background: linear-gradient(135deg, #2563eb, #4f46e5);
+  color: #fff; cursor: pointer; font-family: inherit;
+  transition: all 0.2s; box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+}
+.confirmBtn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.4); }
+
+@media (max-width: 480px) {
+  .modal { padding: 18px; border-radius: 14px; }
+  .title { font-size: 15px; }
+  .timeSelect { width: 64px; font-size: 16px; padding: 8px 10px; }
+  .timeSep { font-size: 18px; }
+  .actions { justify-content: stretch; }
+  .cancelBtn, .confirmBtn { flex: 1; justify-content: center; padding: 10px 14px; font-size: 13px; }
+}
