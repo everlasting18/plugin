@@ -166,11 +166,19 @@ async function pbGetUsage(siteUrl: string, month: string): Promise<PBUsageRecord
   return result.items?.[0] ?? null;
 }
 
-async function pbIncrementUsage(_siteUrl: string, _month: string): Promise<void> {
-  // TODO: usage collection count field has PB constraint (max=0).
-  // Fix in PB dashboard: Usage collection → count field → remove "max" constraint.
-  // Then re-enable usage tracking here.
-  // For now: skip to prevent errors, Pro users have unlimited anyway.
+async function pbIncrementUsage(siteUrl: string, month: string): Promise<void> {
+  const existing = await pbGetUsage(siteUrl, month);
+  if (existing) {
+    await pbRequest("PATCH", `usage/records/${existing.id}`, {
+      count: existing.count + 1,
+    });
+  } else {
+    await pbRequest("POST", "usage/records", {
+      site_url: siteUrl,
+      month,
+      count: 1,
+    });
+  }
 }
 
 // ─── JSON fallback helpers ────────────────────────────────────────────────────
