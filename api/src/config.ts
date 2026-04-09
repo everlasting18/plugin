@@ -7,6 +7,10 @@ export const config = {
   openrouterBase: Deno.env.get("OPENROUTER_BASE_URL") || "https://openrouter.ai/api/v1",
   openrouterModel: Deno.env.get("OPENROUTER_MODEL") || "openai/gpt-4o-mini",
   openrouterFallback: Deno.env.get("OPENROUTER_MODEL_FALLBACK") || "openai/gpt-4o",
+  tavilyKey: Deno.env.get("TAVILY_API_KEY") || "",
+  // PocketBase
+  pbUrl: Deno.env.get("PB_URL") || "",
+  pbAdminToken: Deno.env.get("PB_ADMIN_TOKEN") || "",
 } as const;
 
 if (!config.openrouterKey) {

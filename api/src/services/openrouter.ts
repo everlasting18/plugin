@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { config } from "../config.ts";
+import { logger } from "../lib/logger.ts";
 
 const client = new OpenAI({
   apiKey: config.openrouterKey,
@@ -32,11 +33,18 @@ export async function aiComplete(
     const status = (err as { status?: number }).status;
     const isRetryable = status === 429 || status === 503 || status === 529;
     if (isRetryable && fallbackModel && fallbackModel !== primaryModel) {
-      console.warn(
-        `[openrouter] Primary ${primaryModel} failed (${status}), trying fallback ${fallbackModel}`,
-      );
+      logger.warn("ai model fallback triggered", {
+        primaryModel,
+        fallbackModel,
+        status,
+      });
       return callModel(prompt, fallbackModel, maxTokens);
     }
+    logger.error("ai model call failed", {
+      model: primaryModel,
+      status,
+      error: err instanceof Error ? err.message : String(err),
+    });
     throw err;
   }
 }
@@ -46,22 +54,68 @@ async function callModel(
   model: string,
   maxTokens: number,
 ): Promise<string> {
+  const start = Date.now();
   const completion = await client.chat.completions.create({
     model,
     max_tokens: maxTokens,
     messages: [{ role: "user", content: prompt }],
     temperature: 0.7,
   });
+  const ms = Date.now() - start;
+  const usage = completion.usage;
+  logger.debug("ai model call completed", {
+    model,
+    durationMs: ms,
+    promptTokens: usage?.prompt_tokens,
+    completionTokens: usage?.completion_tokens,
+    totalTokens: usage?.total_tokens,
+  });
   return completion.choices[0]?.message?.content ?? "";
 }
 
 /**
- * Parse JSON từ AI response — bỏ markdown fences nếu có.
+ * Parse JSON từ AI response — bỏ markdown fences và text thừa.
+ * Tìm JSON block hoặc object đầu tiên trong response.
  */
 export function parseJSON<T = Record<string, unknown>>(raw: string): T {
-  const clean = raw
-    .replace(/^```(?:json)?\s*/m, "")
-    .replace(/\s*```\s*$/m, "")
-    .trim();
-  return JSON.parse(clean) as T;
+  // Ưu tiên: tìm block ```json...```
+  const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (fenceMatch) {
+    try {
+      return JSON.parse(fenceMatch[1].trim()) as T;
+    } catch {
+      // fall through
+    }
+  }
+
+  // Tìm object {} hoặc array [] đầu tiên
+  const objectMatch = raw.match(/\{[\s\S]*\}/);
+  const arrayMatch = raw.match(/\[[\s\S]*\]/);
+
+  let candidate = "";
+  if (objectMatch && arrayMatch) {
+    // Chọn cái nào xuất hiện trước
+    candidate = objectMatch.index! < arrayMatch.index!
+      ? objectMatch[0]
+      : arrayMatch[0];
+  } else if (objectMatch) {
+    candidate = objectMatch[0];
+  } else if (arrayMatch) {
+    candidate = arrayMatch[0];
+  }
+
+  if (candidate) {
+    try {
+      return JSON.parse(candidate) as T;
+    } catch {
+      // fall through
+    }
+  }
+
+  // Last resort: thử trim toàn bộ
+  try {
+    return JSON.parse(raw.trim()) as T;
+  } catch {
+    throw new Error(`Cannot parse JSON from response: ${raw.slice(0, 100)}`);
+  }
 }

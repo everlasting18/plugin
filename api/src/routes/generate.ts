@@ -1,50 +1,69 @@
 import { Hono } from "hono";
-import { aiComplete } from "../services/openrouter.ts";
-import { generatePrompt, generateMaxTokens } from "../prompts/mod.ts";
+import { createAgentStream } from "../agents/orchestrator.ts";
+import { logger } from "../lib/logStore.ts";
 
 const app = new Hono();
 
-const VALID_ACTIONS = new Set(["full_article", "intro", "conclusion", "cta", "outline"]);
-
+/**
+ * POST /api/generate
+ *
+ * Agentic content generation: Research → Write → Editor review → (optional Revision)
+ * Streams progress updates + final result as text/plain stream.
+ *
+ * Body params:
+ *   keyword     — chủ đề bài viết
+ *   tone        — professional | friendly | persuasive | simple | storytelling
+ *   count       — 1 | 2 | 3 (số bài viết cần tạo)
+ *   audience    — general | professional | beginner | business
+ *   framework   — app_pas | aida | pas | eeat_skyscraper | hero | listicle | howto | none
+ *   niche       — ngành/niche (tùy chọn)
+ *
+ * Response: text/plain stream
+ *   Progress chunks: [Agent] message\n
+ *   Final chunk:     [DONE] {"type":"done","content":"...","title":"...","editorReview":{...}}
+ *   Error chunk:     [ERROR] error message
+ */
 app.post("/", async (c) => {
+  const reqId = c.get("reqId") as string || "unknown";
   const body = await c.req.json();
   const {
-    action = "full_article",
     keyword = "",
     tone = "professional",
-    length = "medium",
+    count = 1,
     audience = "general",
     framework = "none",
-    // webSearch reserved for future use
+    niche,
   } = body;
 
+  logger.info("generate request started", {
+    reqId,
+    keyword,
+    tone,
+    count,
+    audience,
+    framework,
+    niche: niche || null,
+  });
+
   if (!keyword.trim()) {
+    logger.warn("generate request rejected — missing keyword", { reqId });
     return c.json(
-      { success: false, code: "missing_keyword", message: "Vui lòng nhập keyword hoặc chủ đề bài viết." },
+      {
+        success: false,
+        code: "missing_keyword",
+        message: "Vui lòng nhập keyword hoặc chủ đề bài viết.",
+      },
       400,
     );
   }
-  if (!VALID_ACTIONS.has(action)) {
-    return c.json(
-      { success: false, code: "invalid_action", message: "Action không hợp lệ." },
-      400,
-    );
-  }
 
-  const prompt = generatePrompt({ action, keyword, tone, length, audience, framework });
-  const maxTokens = generateMaxTokens(action, length);
-  const content = await aiComplete(prompt, { maxTokens });
+  const input = { keyword, tone, count, audience, framework, niche };
+  const stream = createAgentStream(input, reqId);
 
-  // Extract title from <h1> tag if present
-  let title = "";
-  if (action === "full_article") {
-    const h1Match = content.match(/<h1[^>]*>(.*?)<\/h1>/i);
-    if (h1Match) {
-      title = h1Match[1].replace(/<[^>]+>/g, "").trim();
-    }
-  }
-
-  return c.json({ success: true, content, title, action });
+  return c.body(stream, 200, {
+    "Content-Type": "text/plain; charset=utf-8",
+    "X-Accel-Buffering": "no",
+  });
 });
 
 export default app;

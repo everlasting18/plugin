@@ -1,0 +1,60 @@
+# Ignore everything in WordPress root (but not dotfiles at root)
+*
+!.*
+
+# But track these directories
+!api/
+!docs/
+!wp-content/plugins/
+
+# Inside plugins: ignore everything except our plugin
+wp-content/plugins/*
+!wp-content/plugins/contentai-plugin/
+
+# Inside our plugin: ignore build artifacts
+wp-content/plugins/contentai-plugin/node_modules/
+wp-content/plugins/contentai-plugin/dist/
+wp-content/plugins/contentai-plugin/.vite/
+wp-content/plugins/contentai-plugin/*.log
+wp-content/plugins/contentai-plugin/package-lock.json
+
+# API-specific ignores (data, logs, secrets)
+api/.env
+api/.DS_Store
+api/*.log
+api/app.log
+api/licenses.json
+api/usage.json
+api/deno.lock
+api/node_modules/
+
+# API PB migrations - keep only schema files
+api/pb_migrations/*.json
+api/pb_migrations/*.ts
+!api/pb_migrations/1_licenses.json
+!api/pb_migrations/2_usage.json
+!api/pb_migrations/3_usage_logs.json
+!api/pb_migrations/sync_to_pb.ts
+api/pb_migrations/demo_license.json
+api/pb_migrations/1700000000_init.js
+
+# WordPress core - always ignore
+wp-admin/
+wp-includes/
+wp-content/themes/
+wp-content/uploads/
+wp-content/cache/
+*.php
+*.txt
+*.xml
+*.html
+!api/**/*.ts
+!api/**/*.js
+!wp-content/plugins/contentai-plugin/**/*.php
+!wp-content/plugins/contentai-plugin/**/*.jsx
+!wp-content/plugins/contentai-plugin/**/*.js
+!wp-content/plugins/contentai-plugin/**/*.css
+!wp-content/plugins/contentai-plugin/**/*.module.css
+license.txt
+readme.html
+my-first-plugin/

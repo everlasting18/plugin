@@ -1,0 +1,117 @@
+[
+    {
+        "id": "licenses001",
+        "listRule": "",
+        "viewRule": "",
+        "createRule": "@request.auth.id != \"\"",
+        "updateRule": "@request.auth.id != \"\"",
+        "deleteRule": "@request.auth.id != \"\"",
+        "name": "licenses",
+        "type": "base",
+        "fields": [
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "text_key",
+                "max": 0,
+                "min": 0,
+                "name": "key",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": true,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "hidden": false,
+                "id": "select_tier",
+                "maxSelect": 1,
+                "name": "tier",
+                "presentable": false,
+                "required": true,
+                "system": false,
+                "type": "select",
+                "values": ["free", "pro"]
+            },
+            {
+                "hidden": false,
+                "id": "url_site_url",
+                "name": "site_url",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "url"
+            },
+            {
+                "cost": 0,
+                "hidden": false,
+                "id": "number_expires",
+                "max": 0,
+                "min": 0,
+                "name": "expires",
+                "pattern": "",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "hidden": false,
+                "id": "select_status",
+                "maxSelect": 1,
+                "name": "status",
+                "presentable": false,
+                "required": true,
+                "system": false,
+                "type": "select",
+                "values": ["active", "revoked", "expired"]
+            },
+            {
+                "cost": 0,
+                "hidden": false,
+                "id": "number_activated_at",
+                "max": 0,
+                "min": 0,
+                "name": "activated_at",
+                "pattern": "",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "hidden": false,
+                "id": "autodate_created",
+                "name": "created",
+                "onCreate": true,
+                "onUpdate": false,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            },
+            {
+                "hidden": false,
+                "id": "autodate_updated",
+                "name": "updated",
+                "onCreate": true,
+                "onUpdate": true,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            }
+        ],
+        "indexes": [
+            "CREATE UNIQUE INDEX idx_key ON licenses (key)"
+        ],
+        "system": false,
+        "mfa": {
+            "enabled": false,
+            "duration": 1800,
+            "rule": ""
+        },
+        "authAlert": {
+            "enabled": false
+        }
+    }
+]

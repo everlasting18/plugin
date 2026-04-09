@@ -1,0 +1,120 @@
+[
+    {
+        "id": "usage_logs001",
+        "listRule": "",
+        "viewRule": "",
+        "createRule": "@request.auth.id != \"\"",
+        "updateRule": "@request.auth.id != \"\"",
+        "deleteRule": "@request.auth.id != \"\"",
+        "name": "usage_logs",
+        "type": "base",
+        "fields": [
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "text_license",
+                "max": 0,
+                "min": 0,
+                "name": "license",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": false,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "url_site_url",
+                "name": "site_url",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "url"
+            },
+            {
+                "hidden": false,
+                "id": "select_action",
+                "maxSelect": 1,
+                "name": "action",
+                "presentable": false,
+                "required": true,
+                "system": false,
+                "type": "select",
+                "values": ["generate", "rewrite", "meta"]
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "text_keyword",
+                "max": 0,
+                "min": 0,
+                "name": "keyword",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": false,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "hidden": false,
+                "id": "select_status",
+                "maxSelect": 1,
+                "name": "status",
+                "presentable": false,
+                "required": true,
+                "system": false,
+                "type": "select",
+                "values": ["success", "error", "rejected"]
+            },
+            {
+                "cost": 0,
+                "hidden": false,
+                "id": "number_tokens",
+                "max": 0,
+                "min": 0,
+                "name": "tokens",
+                "pattern": "",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "cost": 0,
+                "hidden": false,
+                "id": "number_duration_ms",
+                "max": 0,
+                "min": 0,
+                "name": "duration_ms",
+                "pattern": "",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "hidden": false,
+                "id": "autodate_created",
+                "name": "created",
+                "onCreate": true,
+                "onUpdate": false,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            }
+        ],
+        "indexes": [],
+        "system": false,
+        "mfa": {
+            "enabled": false,
+            "duration": 1800,
+            "rule": ""
+        },
+        "authAlert": {
+            "enabled": false
+        }
+    }
+]

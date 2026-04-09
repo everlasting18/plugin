@@ -12,10 +12,103 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// Detect environment: local dev uses localhost API, production uses api.contentai.vn
+function contentai_get_api_url() {
+    $site_url = home_url();
+    $is_local = (strpos($site_url, 'localhost') !== false || strpos($site_url, '127.0.0.1') !== false);
+    return $is_local ? 'http://localhost:3000/api' : 'https://api.contentai.vn/api';
+}
+
 define('CONTENTAI_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('CONTENTAI_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('CONTENTAI_API_URL', 'https://api.contentai.vn/api');
+define('CONTENTAI_API_URL', contentai_get_api_url());
 define('CONTENTAI_FREE_LIMIT', 5);
+
+// ============================================================
+// LICENSE FUNCTIONS
+// ============================================================
+
+function contentai_verify_license($key, $site_url) {
+    $response = wp_remote_post(CONTENTAI_API_URL . '/license/verify', [
+        'body'    => json_encode(['key' => $key, 'site_url' => $site_url]),
+        'headers' => ['Content-Type' => 'application/json'],
+        'timeout' => 15,
+    ]);
+
+    if (is_wp_error($response)) {
+        return [
+            'valid'  => false,
+            'tier'   => 'free',
+            'expires' => null,
+            'message' => 'Không thể kết nối license server.',
+        ];
+    }
+
+    $body = json_decode(wp_remote_retrieve_body($response), true);
+    return $body ?: [
+        'valid'   => false,
+        'tier'    => 'free',
+        'expires' => null,
+        'message' => 'License response không hợp lệ.',
+    ];
+}
+
+function contentai_check_license_status() {
+    $key = get_option('contentai_license_key', '');
+    if (empty($key)) {
+        return ['tier' => 'free', 'valid' => false, 'expires' => null, 'message' => ''];
+    }
+
+    $site_url   = home_url();
+    $last_check = (int) get_option('contentai_license_last_check', 0);
+    $now       = time();
+
+    // Re-verify every 24 hours
+    if ($now - $last_check < 86400) {
+        return [
+            'tier'    => get_option('contentai_license_tier', 'free'),
+            'valid'   => get_option('contentai_license_status', '') === 'active',
+            'expires' => get_option('contentai_license_expires', null),
+            'message' => '',
+        ];
+    }
+
+    // Time to re-verify
+    $result = contentai_verify_license($key, $site_url);
+    contentai_save_license_result($key, $result);
+    return $result;
+}
+
+function contentai_save_license_result($key, $result) {
+    update_option('contentai_license_key', $key);
+    update_option('contentai_license_tier', $result['tier'] ?? 'free');
+    update_option('contentai_license_status', $result['valid'] ? 'active' : 'invalid');
+    update_option('contentai_license_expires', $result['expires'] ?? null);
+    update_option('contentai_license_last_check', time());
+}
+
+function contentai_get_used_count($user_id) {
+    $option_key = "contentai_used_{$user_id}_" . date('Y_m');
+    return (int) get_option($option_key, 0);
+}
+
+function contentai_increment_usage($user_id) {
+    $option_key = "contentai_used_{$user_id}_" . date('Y_m');
+    update_option($option_key, (int) get_option($option_key, 0) + 1);
+}
+
+function contentai_generate_jwt($user_id) {
+    $secret = defined('CONTENTAI_JWT_SECRET') ? CONTENTAI_JWT_SECRET : 'change-this-secret';
+    $payload = [
+        'user_id' => $user_id,
+        'site'    => home_url(),
+        'exp'     => time() + 3600,
+    ];
+    $header = base64_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
+    $payload_encoded = base64_encode(json_encode($payload));
+    $signature = base64_encode(hash_hmac('sha256', "$header.$payload_encoded", $secret, true));
+    return "$header.$payload_encoded.$signature";
+}
 
 // ============================================================
 // ADMIN MENU — Sidebar với parent/child categories
@@ -42,7 +135,10 @@ add_action('admin_menu', function () {
 });
 
 function contentai_dashboard_page() {
-    $used = contentai_get_used_count(get_current_user_id());
+    $user_id  = get_current_user_id();
+    $used     = contentai_get_used_count($user_id);
+    $license  = contentai_check_license_status();
+    $is_pro   = ($license['tier'] ?? 'free') === 'pro' && ($license['valid'] ?? false);
     ?>
     <div class="wrap">
         <h1>ContentAI — Dashboard</h1>
@@ -52,7 +148,7 @@ function contentai_dashboard_page() {
                 <div style="font-size:13px; color:#888; margin-top:4px;">Bài đã dùng tháng này</div>
             </div>
             <div style="background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:20px;">
-                <div style="font-size:28px; font-weight:700; color:#16a34a;">Free</div>
+                <div style="font-size:28px; font-weight:700; color:<?php echo $is_pro ? '#9333ea' : '#16a34a'; ?>;"><?php echo $is_pro ? 'Pro' : 'Free'; ?></div>
                 <div style="font-size:13px; color:#888; margin-top:4px;">Gói hiện tại</div>
             </div>
             <div style="background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:20px;">
@@ -60,6 +156,12 @@ function contentai_dashboard_page() {
                 <div style="font-size:13px; color:#888; margin-top:4px;">Realtime analyzer</div>
             </div>
         </div>
+        <?php if (!$is_pro): ?>
+        <div style="margin-top:20px; padding:16px; background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; max-width:800px;">
+            <strong>Bạn đang dùng gói Free</strong> — <?php echo CONTENTAI_FREE_LIMIT; ?> bài/tháng.
+            <a href="<?php echo admin_url('admin.php?page=contentai-settings'); ?>">Nâng cấp Pro</a> để không giới hạn.
+        </div>
+        <?php endif; ?>
         <div style="margin-top:24px;">
             <h3>Bắt đầu nhanh</h3>
             <p>Mở <strong>Gutenberg Editor</strong> (tạo/sửa bài viết) → sidebar ContentAI tự động hiện ra.</p>
@@ -93,18 +195,25 @@ function contentai_write_page() {
             );
         }
 
-        $user_id = get_current_user_id();
+        $user_id  = get_current_user_id();
+        $token    = contentai_generate_jwt($user_id);
+        $license  = contentai_check_license_status();
+        $used_count = contentai_get_used_count($user_id);
+        $is_pro  = ($license['tier'] ?? 'free') === 'pro' && ($license['valid'] ?? false);
+
         wp_localize_script('contentai-admin', 'contentaiData', [
-            'apiUrl'    => CONTENTAI_API_URL,
-            'token'     => contentai_generate_jwt($user_id),
-            'userId'    => $user_id,
-            'usedCount' => contentai_get_used_count($user_id),
-            'freeLimit' => CONTENTAI_FREE_LIMIT,
-            'isPro'     => false,
-            'siteUrl'   => home_url(),
-            'restUrl'   => esc_url_raw(rest_url()),
-            'nonce'     => wp_create_nonce('wp_rest'),
-            'adminUrl'  => admin_url(),
+            'apiUrl'      => CONTENTAI_API_URL,
+            'token'       => $token,
+            'userId'      => $user_id,
+            'usedCount'   => $used_count,
+            'freeLimit'   => CONTENTAI_FREE_LIMIT,
+            'isPro'       => $is_pro,
+            'siteUrl'     => home_url(),
+            'restUrl'     => esc_url_raw(rest_url()),
+            'nonce'       => wp_create_nonce('wp_rest'),
+            'adminUrl'    => admin_url(),
+            'licenseTier' => $license['tier'] ?? 'free',
+            'licenseKey'  => get_option('contentai_license_key', ''),
         ]);
     }
     ?>
@@ -170,20 +279,96 @@ function contentai_history_page() {
 }
 
 function contentai_settings_page() {
+    $license = contentai_check_license_status();
+    $is_pro  = ($license['tier'] ?? 'free') === 'pro' && ($license['valid'] ?? false);
+    $key     = get_option('contentai_license_key', '');
+    $error   = isset($_GET['license_error']) ? esc_html($_GET['license_error']) : '';
+    $success = isset($_GET['license_success']) ? esc_html($_GET['license_success']) : '';
+
+    // Handle form submission
+    if (isset($_POST['contentai_license_nonce']) && wp_verify_nonce($_POST['contentai_license_nonce'], 'contentai_license_action')) {
+        $new_key = sanitize_text_field($_POST['contentai_license_key'] ?? '');
+        if (!empty($new_key)) {
+            $result = contentai_verify_license($new_key, home_url());
+            contentai_save_license_result($new_key, $result);
+            if ($result['valid']) {
+                wp_redirect(admin_url('admin.php?page=contentai-settings&license_success=1'));
+                exit;
+            } else {
+                wp_redirect(admin_url('admin.php?page=contentai-settings&license_error=' . urlencode($result['message'])));
+                exit;
+            }
+        } else {
+            // Clear license
+            delete_option('contentai_license_key');
+            delete_option('contentai_license_tier');
+            delete_option('contentai_license_status');
+            delete_option('contentai_license_expires');
+            delete_option('contentai_license_last_check');
+            wp_redirect(admin_url('admin.php?page=contentai-settings'));
+            exit;
+        }
+    }
+
     ?>
     <div class="wrap">
         <h1>Cài đặt ContentAI</h1>
+
+        <?php if ($error): ?>
+            <div class="notice notice-error"><p><?php echo $error; ?></p></div>
+        <?php endif; ?>
+        <?php if ($success): ?>
+            <div class="notice notice-success"><p>License key đã được kích hoạt thành công!</p></div>
+        <?php endif; ?>
+
+        <form method="post" action="" style="max-width:600px; margin-top:20px;">
+            <?php wp_nonce_field('contentai_license_action', 'contentai_license_nonce'); ?>
+            <h2>License Key</h2>
+            <table class="form-table">
+                <tr>
+                    <th scope="row">Trạng thái</th>
+                    <td>
+                        <?php if ($is_pro): ?>
+                            <span style="background:#16a34a; color:#fff; padding:3px 12px; border-radius:12px; font-weight:600;">Pro</span>
+                            <?php if (!empty($license['expires'])): ?>
+                                <span style="color:#888; font-size:12px;"> — Hết hạn: <?php echo esc_html(date('d/m/Y', $license['expires'])); ?></span>
+                            <?php endif; ?>
+                        <?php else: ?>
+                            <span style="background:#e0e0e0; color:#555; padding:3px 12px; border-radius:12px; font-weight:600;">Free</span>
+                            <span style="color:#888; font-size:12px;"> — <?php echo CONTENTAI_FREE_LIMIT; ?> bài/tháng</span>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">License Key</th>
+                    <td>
+                        <?php if (!empty($key)): ?>
+                            <code style="font-size:11px; background:#f0f0f0; padding:4px 8px; border-radius:4px;"><?php echo esc_html($key); ?></code>
+                            <p class="description">Đã đăng ký. Key sẽ tự động xác minh lại mỗi 24h.</p>
+                        <?php else: ?>
+                            <input type="text" name="contentai_license_key" class="regular-text" placeholder="Nhập license key (VD: DEMO-PRO-XXXX)" style="max-width:400px;" />
+                            <p class="description">Nhận license key tại <a href="https://contentai.vn" target="_blank">contentai.vn</a></p>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            </table>
+            <p class="submit">
+                <?php if (!empty($key)): ?>
+                    <button type="submit" class="button">Cập nhật License Key</button>
+                <?php else: ?>
+                    <button type="submit" class="button button-primary">Kích hoạt License</button>
+                <?php endif; ?>
+            </p>
+        </form>
+
+        <hr style="margin:30px 0;" />
+
         <form method="post" action="options.php" style="max-width:600px;">
             <table class="form-table">
                 <tr>
                     <th>API URL</th>
                     <td><input type="text" value="<?php echo esc_attr(CONTENTAI_API_URL); ?>" class="regular-text" disabled />
-                    <p class="description">Endpoint API Node.js backend</p></td>
-                </tr>
-                <tr>
-                    <th>Gói hiện tại</th>
-                    <td><strong style="color:#16a34a;">Free</strong> — <?php echo CONTENTAI_FREE_LIMIT; ?> bài/tháng
-                    <br><a href="https://contentai.vn/pro" target="_blank">Nâng cấp Pro →</a></td>
+                    <p class="description">Endpoint API backend</p></td>
                 </tr>
                 <tr>
                     <th>Giọng văn mặc định</th>
@@ -253,18 +438,22 @@ add_action('enqueue_block_editor_assets', function () {
     wp_add_inline_style("contentai-editor", contentai_get_layout_css());
 
     // Inject data cho React (window.contentaiData)
-    $user_id = get_current_user_id();
-    $token = contentai_generate_jwt($user_id);
+    $user_id  = get_current_user_id();
+    $token    = contentai_generate_jwt($user_id);
+    $license  = contentai_check_license_status();
     $used_count = contentai_get_used_count($user_id);
+    $is_pro  = ($license['tier'] ?? 'free') === 'pro' && ($license['valid'] ?? false);
 
     wp_localize_script('contentai-editor', 'contentaiData', [
-        'apiUrl'    => CONTENTAI_API_URL,
-        'token'     => $token,
-        'userId'    => $user_id,
-        'usedCount' => $used_count,
-        'freeLimit' => CONTENTAI_FREE_LIMIT,
-        'isPro'     => false,
-        'siteUrl'   => home_url(),
+        'apiUrl'      => CONTENTAI_API_URL,
+        'token'       => $token,
+        'userId'      => $user_id,
+        'usedCount'   => $used_count,
+        'freeLimit'   => CONTENTAI_FREE_LIMIT,
+        'isPro'       => $is_pro,
+        'siteUrl'     => home_url(),
+        'licenseTier' => $license['tier'] ?? 'free',
+        'licenseKey'  => get_option('contentai_license_key', ''),
     ]);
 });
 
@@ -308,29 +497,3 @@ add_filter('script_loader_tag', function ($tag, $handle) {
     }
     return $tag;
 }, 10, 2);
-
-/**
- * Generate JWT token cho user.
- * TODO: Thay bằng logic JWT thật khi có Node.js backend
- */
-function contentai_generate_jwt($user_id) {
-    $secret = defined('CONTENTAI_JWT_SECRET') ? CONTENTAI_JWT_SECRET : 'change-this-secret';
-    $payload = [
-        'user_id' => $user_id,
-        'site'    => home_url(),
-        'exp'     => time() + 3600,
-    ];
-    $header = base64_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
-    $payload_encoded = base64_encode(json_encode($payload));
-    $signature = base64_encode(hash_hmac('sha256', "$header.$payload_encoded", $secret, true));
-    return "$header.$payload_encoded.$signature";
-}
-
-/**
- * Lấy số bài đã generate tháng này.
- * TODO: Thay bằng API call thật hoặc đọc từ DB
- */
-function contentai_get_used_count($user_id) {
-    $option_key = "contentai_used_{$user_id}_" . date('Y_m');
-    return (int) get_option($option_key, 0);
-}

@@ -2,8 +2,17 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { config } from "./config.ts";
 import routes from "./routes/mod.ts";
+import { startLogCapture } from "./lib/logStore.ts";
 
 const app = new Hono();
+
+// Request ID middleware — attaches x-request-id header
+app.use("/*", async (c, next) => {
+  const reqId = c.req.header("x-request-id") || crypto.randomUUID();
+  c.set("reqId", reqId);
+  c.res.headers.set("x-request-id", reqId);
+  await next();
+});
 
 // CORS — cho phép mọi origin (dev)
 app.use("/*", cors());
@@ -16,7 +25,15 @@ app.route("/api", routes);
 
 // Global error handler
 app.onError((err, c) => {
-  console.error(`[error] ${c.req.method} ${c.req.path}:`, err.message);
+  const reqId = c.get("reqId") || "unknown";
+  console.error(JSON.stringify({
+    ts: new Date().toISOString(),
+    level: "ERROR",
+    msg: err.message,
+    reqId,
+    path: c.req.path,
+    method: c.req.method,
+  }));
 
   const status = (err as unknown as { status?: number }).status;
   if (status === 429) {
@@ -39,5 +56,7 @@ app.notFound((c) => {
 
 console.log(`[server] ContentAI API :${config.port}`);
 console.log(`[server] Model: ${config.openrouterModel}`);
+
+startLogCapture();
 
 Deno.serve({ port: config.port }, app.fetch);

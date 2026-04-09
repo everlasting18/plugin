@@ -1,0 +1,9 @@
+{
+  "DEMO-PRO-TEST": {
+    "key": "DEMO-PRO-TEST",
+    "tier": "pro",
+    "siteUrl": "http://localhost/wordpress",
+    "expires": 1807248022466,
+    "activated": 1775712908781
+  }
+}

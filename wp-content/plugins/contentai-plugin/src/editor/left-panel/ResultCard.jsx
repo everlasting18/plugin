@@ -1,7 +1,9 @@
 import styles from './ResultCard.module.css';
 
 export default function ResultCard({ result, onInsert, onDiscard, loading }) {
-  const plainText = result.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  // Strip H1 from preview since WordPress already sets the post title separately
+  const contentNoH1 = result.content.replace(/<h1[^>]*>[\s\S]*?<\/h1>\s*/gi, '').trim();
+  const plainText = contentNoH1.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
   const preview = plainText.length > 120 ? plainText.slice(0, 120) + '...' : plainText;
 
   const handleCopy = () => {

@@ -1,16 +1,13 @@
 const { useState, useEffect, useRef, useCallback } = wp.element;
 const { createPortal } = wp.element;
-const { useDispatch } = wp.data;
-const { store: editorStore } = wp.editor;
 
 import styles from './LeftPanel.module.css';
 import ResultCard from './ResultCard.jsx';
 import { api } from '../../lib/api.js';
 
-const POST_LENGTHS = [
-  { value: 'short', label: 'Ngắn', desc: '~500 từ' },
-  { value: 'medium', label: 'Vừa', desc: '~1200 từ' },
-  { value: 'long', label: 'Dài', desc: '~2500 từ' },
+const POST_COUNTS = [
+  { value: 1, label: '1 bài', desc: 'Nhanh nhất' },
+  { value: 2, label: '2 bài', desc: 'Cân bằng' },
 ];
 const AUDIENCES = [
   { value: 'general', label: 'Chung' },
@@ -33,9 +30,9 @@ export default function LeftPanel({ keyword, onKeywordChange, results, addResult
   const [error, setError] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [expandedMenu, setExpandedMenu] = useState(null);
-  const [settings, setSettings] = useState({ length: 'medium', audience: 'general', framework: 'none', webSearch: true });
+  const [settings, setSettings] = useState({ count: 1, audience: 'general', framework: 'none', webSearch: true });
+  const [streamLines, setStreamLines] = useState([]);
 
-  const { editPost } = useDispatch(editorStore);
 
   useEffect(() => {
     const tryInject = () => {
@@ -65,21 +62,51 @@ export default function LeftPanel({ keyword, onKeywordChange, results, addResult
   const handleGenerate = useCallback(async () => {
     if (!keyword.trim() || loading) return;
     setLoading(true); setError('');
+    setStreamLines([]);
     try {
-      const data = await api.generate({ keyword, tone: 'professional', length: settings.length, audience: settings.audience, framework: settings.framework, webSearch: settings.webSearch, action: 'full_article' });
-      addResult({ type: 'full_article', label: 'Bài viết', content: data.content, title: data.title });
-    } catch (err) { setError(err.message); } finally { setLoading(false); }
-  }, [keyword, settings, loading]);
+      for await (const line of api.generateStream({ keyword, tone: 'professional', count: settings.count, audience: settings.audience, framework: settings.framework, webSearch: settings.webSearch, action: 'full_article' })) {
+        if (line.startsWith('[DONE]')) {
+          try {
+            const data = JSON.parse(line.slice(6).trim());
+            setStreamLines([]); // Clear stream display once we have the result
+            // data.posts is an array of {content, title}
+            if (Array.isArray(data.posts)) {
+              data.posts.forEach(post => {
+                addResult({ type: 'full_article', label: 'Bài viết', content: post.content, title: post.title });
+              });
+            } else if (data.content) {
+              addResult({ type: 'full_article', label: 'Bài viết', content: data.content, title: data.title });
+            }
+          } catch (e) {
+            console.warn('[ContentAI] Failed to parse DONE response:', e);
+          }
+        } else {
+          setStreamLines(prev => [...prev.slice(-30), { text: line, time: Date.now() }]);
+        }
+      }
+    } catch (err) { setError(err.message); } finally { setLoading(false); setStreamLines([]); }
+  }, [keyword, settings, loading, addResult]);
 
   const handleKeyDown = useCallback((e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleGenerate(); } }, [handleGenerate]);
 
   const handleInsert = useCallback((result) => {
-    editPost({ content: result.content, ...(result.title ? { title: result.title } : {}) });
-    removeResult(result.id);
-  }, [editPost, removeResult]);
+    // Strip H1 block from content (title is set separately)
+    const contentNoH1 = result.content
+      .replace(/<!-- wp:heading\s*\{[^}]*"level"\s*:\s*1[^}]*\}\s*-->[\s\S]*?<!-- \/wp:heading -->\s*/gi, '')
+      .trim();
+
+    const { editPost } = wp.data.dispatch('core/editor');
+
+    if (contentNoH1) {
+      editPost({ content: contentNoH1 });
+    }
+    if (result.title) {
+      editPost({ title: result.title });
+    }
+  }, []);
 
   const menuItems = [
-    { key: 'length', icon: '📏', label: 'Độ dài bài', options: POST_LENGTHS, current: settings.length },
+    { key: 'count', icon: '📏', label: 'Số bài viết', options: POST_COUNTS, current: settings.count },
     { key: 'audience', icon: '👥', label: 'Đối tượng', options: AUDIENCES, current: settings.audience },
     { key: 'framework', icon: '🧩', label: 'Framework', options: FRAMEWORKS, current: settings.framework },
   ];
@@ -140,7 +167,12 @@ export default function LeftPanel({ keyword, onKeywordChange, results, addResult
           </div>
         </div>
 
-        {loading && <div className={styles.prog}><div className={styles.progBar}/><span>Đang tạo nội dung...</span></div>}
+        {loading && (
+          <div className={styles.streamBox}>
+            {streamLines.length === 0 && <div className={styles.prog}><div className={styles.progBar}/><span>Đang tạo nội dung...</span></div>}
+            {streamLines.map((l, i) => <div key={i} className={styles.streamLine}>{l.text}</div>)}
+          </div>
+        )}
         {error && <div className={styles.err}>{error}</div>}
 
         {results.length > 0 && (

@@ -1,17 +1,17 @@
 import styles from './LengthSelector.module.css';
 
-const LENGTHS = [
-  { value: 'short', label: '~500 từ' },
-  { value: 'medium', label: '~1200 từ' },
-  { value: 'long', label: 'Pro: ~2500 từ', isPro: true },
+const COUNTS = [
+  { value: 1, label: '1 bài' },
+  { value: 2, label: '2 bài' },
+  { value: 3, label: '3 bài', isPro: true },
 ];
 
 export default function LengthSelector({ selected, onChange, disabled }) {
   return (
     <div className={styles.wrap}>
-      <span className={styles.label}>ĐỘ DÀI</span>
+      <span className={styles.label}>SỐ BÀI</span>
       <div className={styles.row}>
-        {LENGTHS.map(({ value, label, isPro }) => (
+        {COUNTS.map(({ value, label, isPro }) => (
           <button
             key={value}
             className={`${styles.chip} ${selected === value ? styles.active : ''} ${isPro ? styles.pro : ''}`}
