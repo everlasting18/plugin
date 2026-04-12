@@ -1,0 +1,116 @@
+---
+---
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="/" class="nav-logo" style="margin-bottom: 12px; display: inline-flex;">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <rect width="28" height="28" rx="8" fill="#6366f1"/>
+            <path d="M8 10h12M8 14h8M8 18h10" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          ContentAI
+        </a>
+        <p style="font-size: 14px; color: var(--gray-500); max-width: 280px; line-height: 1.6;">
+          Công cụ viết bài AI cho WordPress. Giúp bạn tạo nội dung SEO chuyên nghiệp nhanh chóng.
+        </p>
+      </div>
+
+      <div class="footer-links">
+        <h4>Sản phẩm</h4>
+        <ul>
+          <li><a href="#features">Tính năng</a></li>
+          <li><a href="#pricing">Bảng giá</a></li>
+          <li><a href="#download">Tải về</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links">
+        <h4>Hỗ trợ</h4>
+        <ul>
+          <li><a href="/login">Đăng nhập</a></li>
+          <li><a href="#">Tài liệu</a></li>
+          <li><a href="#">Liên hệ</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links">
+        <h4>Pháp lý</h4>
+        <ul>
+          <li><a href="#">Điều khoản sử dụng</a></li>
+          <li><a href="#">Chính sách bảo mật</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p>&copy; 2025 ContentAI. Tất cả quyền được bảo lưu.</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    background: var(--gray-900);
+    color: var(--gray-400);
+    padding: 64px 0 32px;
+  }
+
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 48px;
+    margin-bottom: 48px;
+  }
+
+  .footer-brand .nav-logo {
+    color: white;
+  }
+
+  .footer-links h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .footer-links ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .footer-links a {
+    font-size: 14px;
+    color: var(--gray-400);
+    transition: color 0.2s;
+  }
+
+  .footer-links a:hover {
+    color: white;
+    text-decoration: none;
+  }
+
+  .footer-bottom {
+    border-top: 1px solid var(--gray-700);
+    padding-top: 24px;
+    font-size: 14px;
+  }
+
+  @media (max-width: 768px) {
+    .footer-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .footer-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

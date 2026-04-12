@@ -1,0 +1,325 @@
+---
+interface Props {
+  title?: string;
+  description?: string;
+}
+const {
+  title = 'ContentAI - Viết bài AI cho WordPress',
+  description = 'Plugin WordPress viết bài SEO chuyên nghiệp với AI. Hỗ trợ 8 framework viết, tối ưu SEO, tạo meta description tự động.',
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  :root {
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --primary-light: #818cf8;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+    --radius: 12px;
+    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  }
+
+  html {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--gray-50);
+    color: var(--gray-800);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a {
+    color: var(--primary);
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    text-decoration: none;
+  }
+
+  .btn:hover {
+    text-decoration: none;
+  }
+
+  .btn-primary {
+    background: var(--primary);
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    background: white;
+    color: var(--gray-700);
+    border: 1px solid var(--gray-200);
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--gray-300);
+    background: var(--gray-50);
+  }
+
+  .btn-google {
+    background: white;
+    color: var(--gray-700);
+    border: 1px solid var(--gray-200);
+    width: 100%;
+    justify-content: center;
+  }
+
+  .btn-google:hover {
+    background: var(--gray-50);
+  }
+
+  .btn-google img {
+    width: 20px;
+    height: 20px;
+  }
+
+  .card {
+    background: white;
+    border-radius: var(--radius);
+    border: 1px solid var(--gray-200);
+    padding: 32px;
+    box-shadow: var(--shadow);
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .badge-free {
+    background: #dcfce7;
+    color: #15803d;
+  }
+
+  .badge-pro {
+    background: #ede9fe;
+    color: #6d28d9;
+  }
+
+  .input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+    background: white;
+  }
+
+  .input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgb(99 102 241 / 0.1);
+  }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .input-group label {
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--gray-700);
+  }
+
+  .input-hint {
+    font-size: 12px;
+    color: var(--gray-400);
+  }
+
+  .alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .alert-success {
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+  }
+
+  .alert-error {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+  }
+
+  .nav {
+    position: sticky;
+    top: 0;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--gray-200);
+    z-index: 100;
+    padding: 0;
+  }
+
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0;
+  }
+
+  .nav-logo {
+    font-weight: 800;
+    font-size: 20px;
+    color: var(--gray-900);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .nav-logo:hover {
+    text-decoration: none;
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .nav-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .nav-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+    overflow: hidden;
+  }
+
+  .nav-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .section {
+    padding: 80px 0;
+  }
+
+  .section-title {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--gray-900);
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  .section-desc {
+    font-size: 18px;
+    color: var(--gray-500);
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto 48px;
+  }
+
+  .grid {
+    display: grid;
+    gap: 24px;
+  }
+
+  .grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 768px) {
+    .grid-3, .grid-2 {
+      grid-template-columns: 1fr;
+    }
+    .section-title {
+      font-size: 28px;
+    }
+  }
+</style>

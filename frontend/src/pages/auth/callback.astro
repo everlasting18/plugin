@@ -1,0 +1,26 @@
+---
+import { pb } from '../../lib/pocketbase';
+
+const code = Astro.url.searchParams.get('code');
+
+if (code) {
+  // Exchange code for auth token via API route
+  try {
+    const res = await fetch(`${Astro.url.origin}/api/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    if (res.ok) {
+      return Astro.redirect('/dashboard');
+    }
+  } catch (e) {
+    // fall through to error
+  }
+}
+---
+
+<script>
+  // OAuth callback - redirect to dashboard on success or back to login on error
+  window.location.href = '/dashboard';
+</script>

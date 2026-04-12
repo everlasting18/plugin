@@ -1,0 +1,406 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+---
+
+<Layout title="Dashboard - ContentAI" description="Quản lý tài khoản ContentAI của bạn.">
+  <Header />
+
+  <section class="dashboard">
+    <div class="container">
+      <div class="dashboard-header">
+        <h1>Dashboard</h1>
+        <p>Quản lý tài khoản và license của bạn</p>
+      </div>
+
+      <div class="dashboard-grid">
+        <!-- Account Info -->
+        <div class="card">
+          <h2 class="card-title">Tài khoản</h2>
+          <div class="user-info">
+            <div class="user-avatar">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <p style="font-weight: 600; color: var(--gray-900);">Đang tải...</p>
+              <p style="font-size: 14px; color: var(--gray-500);">Đang tải thông tin...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- License Section -->
+        <div class="card">
+          <h2 class="card-title">License & Domain</h2>
+          <p style="font-size: 14px; color: var(--gray-500); margin-bottom: 20px;">
+            Nhập domain WordPress của bạn và license key (nếu có) để kích hoạt plugin.
+          </p>
+
+          <form id="licenseForm" class="license-form">
+            <div class="input-group">
+              <label for="domain">Domain WordPress *</label>
+              <input
+                type="url"
+                id="domain"
+                name="domain"
+                class="input"
+                placeholder="https://yoursite.com"
+                required
+              />
+              <span class="input-hint">Domain đầy đủ có https://</span>
+            </div>
+
+            <div class="input-group">
+              <label for="licenseKey">License Key</label>
+              <input
+                type="text"
+                id="licenseKey"
+                name="licenseKey"
+                class="input"
+                placeholder="CONTENTAI-PRO-XXXXX"
+              />
+              <span class="input-hint">Để trống nếu dùng gói Free (5 bài/tháng)</span>
+            </div>
+
+            <div id="formMessage" class="alert" style="display: none;"></div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;" id="submitBtn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M5 13l4 4L19 7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Kích hoạt / Cập nhật
+            </button>
+          </form>
+
+          <div class="license-info" id="licenseInfo" style="display: none;">
+            <h3>Thông tin License</h3>
+            <div class="license-stats">
+              <div class="license-stat">
+                <span class="license-stat-label">Trạng thái</span>
+                <span class="badge" id="licenseStatus">--</span>
+              </div>
+              <div class="license-stat">
+                <span class="license-stat-label">Tier</span>
+                <span id="licenseTier">--</span>
+              </div>
+              <div class="license-stat">
+                <span class="license-stat-label">Bài viết tháng này</span>
+                <span id="usageCount">--</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Download -->
+        <div class="card">
+          <h2 class="card-title">Tải Plugin</h2>
+          <p style="font-size: 14px; color: var(--gray-500); margin-bottom: 20px;">
+            Tải plugin ContentAI và cài đặt vào WordPress của bạn.
+          </p>
+
+          <div class="download-box">
+            <div class="download-info-row">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <div>
+                <p style="font-weight: 600; color: var(--gray-900);">contentai-plugin.zip</p>
+                <p style="font-size: 13px; color: var(--gray-400);">WordPress 6.0+</p>
+              </div>
+            </div>
+            <a href="/api/download" class="btn btn-primary" style="padding: 10px 20px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Tải về
+            </a>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">Hướng dẫn cài đặt</h4>
+            <ol style="font-size: 13px; color: var(--gray-500); padding-left: 20px; line-height: 1.8;">
+              <li>Tải plugin về máy</li>
+              <li>Vào WordPress → Plugins → Add New → Upload</li>
+              <li>Upload file zip và Activate</li>
+              <li>Vào Settings → nhập Domain + License Key</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .dashboard {
+    padding: 48px 0;
+    min-height: calc(100vh - 72px);
+  }
+
+  .dashboard-header {
+    margin-bottom: 32px;
+  }
+
+  .dashboard-header h1 {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--gray-900);
+    margin-bottom: 4px;
+  }
+
+  .dashboard-header p {
+    font-size: 15px;
+    color: var(--gray-500);
+  }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+
+  .card-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--gray-200);
+  }
+
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .user-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #ede9fe;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .license-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .download-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--gray-50);
+    border-radius: 12px;
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .download-info-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .license-info {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--gray-200);
+  }
+
+  .license-info h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 12px;
+  }
+
+  .license-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .license-stat {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 14px;
+  }
+
+  .license-stat-label {
+    color: var(--gray-500);
+  }
+
+  .license-stat span:last-child {
+    font-weight: 600;
+    color: var(--gray-900);
+  }
+
+  @media (max-width: 900px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  const form = document.getElementById('licenseForm') as HTMLFormElement;
+  const formMessage = document.getElementById('formMessage') as HTMLDivElement;
+  const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement;
+  const licenseInfo = document.getElementById('licenseInfo') as HTMLDivElement;
+  const licenseStatus = document.getElementById('licenseStatus') as HTMLSpanElement;
+  const licenseTier = document.getElementById('licenseTier') as HTMLSpanElement;
+  const usageCount = document.getElementById('usageCount') as HTMLSpanElement;
+  const userInfoEl = document.querySelector('.user-info p') as HTMLParagraphElement;
+
+  const API_URL = 'https://api.contentai.vn/api';
+  const PB_URL = 'https://8qj9xau0f6ama5b.591p.pocketbasecloud.com';
+
+  // Load saved data from localStorage
+  const savedDomain = localStorage.getItem('contentai_domain');
+  const savedKey = localStorage.getItem('contentai_license_key');
+  const savedTier = localStorage.getItem('contentai_tier');
+
+  if (savedDomain) {
+    (document.getElementById('domain') as HTMLInputElement).value = savedDomain;
+  }
+  if (savedKey) {
+    (document.getElementById('licenseKey') as HTMLInputElement).value = savedKey;
+  }
+
+  // Check auth status
+  async function checkAuth() {
+    try {
+      const res = await fetch(`${PB_URL}/api/collections/users/auth-refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.record) {
+          userInfoEl.textContent = data.record.email || 'User';
+          userInfoEl.nextElementSibling!.textContent = 'Đã đăng nhập Google';
+        }
+      }
+    } catch {
+      userInfoEl.textContent = 'Khách';
+      userInfoEl.nextElementSibling!.textContent = 'Chưa đăng nhập';
+    }
+  }
+
+  checkAuth();
+
+  // Check existing license
+  async function checkLicense() {
+    if (!savedDomain) return;
+
+    try {
+      const res = await fetch(`${API_URL}/license/check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain: savedDomain }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        showLicenseInfo(data);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  checkLicense();
+
+  function showLicenseInfo(data: any) {
+    licenseInfo.style.display = 'block';
+    licenseStatus.textContent = data.tier === 'pro' ? 'Pro' : 'Free';
+    licenseStatus.className = `badge badge-${data.tier}`;
+    licenseTier.textContent = data.tier === 'pro' ? 'Pro - Unlimited' : 'Free - 5 bài/tháng';
+    usageCount.textContent = `${data.count || 0} / ${data.limit || 5}`;
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const domain = (document.getElementById('domain') as HTMLInputElement).value.trim();
+    const licenseKey = (document.getElementById('licenseKey') as HTMLInputElement).value.trim();
+
+    if (!domain) {
+      showMessage('Vui lòng nhập domain', 'error');
+      return;
+    }
+
+    // Save to localStorage
+    localStorage.setItem('contentai_domain', domain);
+    localStorage.setItem('contentai_license_key', licenseKey);
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" class="spin">
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      Đang xử lý...
+    `;
+
+    try {
+      if (licenseKey) {
+        // Verify + activate license
+        const res = await fetch(`${API_URL}/license/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: licenseKey, site_url: domain }),
+        });
+
+        const data = await res.json();
+
+        if (data.valid) {
+          localStorage.setItem('contentai_tier', data.tier);
+          showMessage(`Kích hoạt thành công! License ${data.tier.toUpperCase()}`, 'success');
+          showLicenseInfo({ tier: data.tier, count: 0, limit: data.tier === 'pro' ? '∞' : 5 });
+        } else {
+          localStorage.removeItem('contentai_tier');
+          showMessage(data.message || 'License không hợp lệ', 'error');
+        }
+      } else {
+        // Just save domain for free tier
+        localStorage.setItem('contentai_tier', 'free');
+        showMessage('Đã lưu domain! Bạn đang dùng gói Free (5 bài/tháng)', 'success');
+        showLicenseInfo({ tier: 'free', count: 0, limit: 5 });
+      }
+    } catch (err) {
+      showMessage('Có lỗi xảy ra. Vui lòng thử lại.', 'error');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M5 13l4 4L19 7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Kích hoạt / Cập nhật
+      `;
+    }
+  });
+
+  function showMessage(msg: string, type: 'success' | 'error') {
+    formMessage.textContent = msg;
+    formMessage.className = `alert alert-${type}`;
+    formMessage.style.display = 'block';
+    setTimeout(() => { formMessage.style.display = 'none'; }, 5000);
+  }
+</script>
+
+<style>
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+</style>

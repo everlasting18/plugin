@@ -1,24 +1,69 @@
-# Ignore everything in WordPress root (but not dotfiles at root)
-*
-!.*
+# Editor directories
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# But track these directories
+# Track these directories
 !api/
-!docs/
+!api/src/
+!api/pb_migrations/
+!frontend/
 !wp-content/plugins/
 
-# Inside plugins: ignore everything except our plugin
-wp-content/plugins/*
-!wp-content/plugins/contentai-plugin/
+# Ignore specific files at root
+.DS_Store
+.htaccess
+wp-config.php
+wp-config-local.php
+error_log
+php_errorlog
+*.log
+*.log.*
 
-# Inside our plugin: ignore build artifacts
+# Ignore WP core
+wp-admin/
+wp-includes/
+wp-content/themes/
+wp-content/uploads/
+wp-content/cache/
+*.php
+*.txt
+*.xml
+*.html
+license.txt
+readme.html
+my-first-plugin/
+
+# Track specific file types in tracked dirs
+!api/**/*.ts
+!api/**/*.js
+!api/**/*.json
+!wp-content/plugins/contentai-plugin/**/*.php
+!wp-content/plugins/contentai-plugin/**/*.jsx
+!wp-content/plugins/contentai-plugin/**/*.js
+!wp-content/plugins/contentai-plugin/**/*.css
+!wp-content/plugins/contentai-plugin/**/*.module.css
+!wp-content/plugins/contentai-plugin/**/*.svg
+!wp-content/plugins/contentai-plugin/**/*.png
+!wp-content/plugins/contentai-plugin/**/*.jpg
+!frontend/src/**/*
+!frontend/public/**/*
+!frontend/astro.config.mjs
+!frontend/package.json
+!frontend/tsconfig.json
+!frontend/README.md
+!frontend/.gitignore
+!frontend/scripts/**/*
+
+# Inside plugins: ignore build artifacts
 wp-content/plugins/contentai-plugin/node_modules/
 wp-content/plugins/contentai-plugin/dist/
 wp-content/plugins/contentai-plugin/.vite/
 wp-content/plugins/contentai-plugin/*.log
 wp-content/plugins/contentai-plugin/package-lock.json
 
-# API-specific ignores (data, logs, secrets)
+# API-specific ignores
 api/.env
 api/.DS_Store
 api/*.log
@@ -38,23 +83,9 @@ api/pb_migrations/*.ts
 api/pb_migrations/demo_license.json
 api/pb_migrations/1700000000_init.js
 
-# WordPress core - always ignore
-wp-admin/
-wp-includes/
-wp-content/themes/
-wp-content/uploads/
-wp-content/cache/
-*.php
-*.txt
-*.xml
-*.html
-!api/**/*.ts
-!api/**/*.js
-!wp-content/plugins/contentai-plugin/**/*.php
-!wp-content/plugins/contentai-plugin/**/*.jsx
-!wp-content/plugins/contentai-plugin/**/*.js
-!wp-content/plugins/contentai-plugin/**/*.css
-!wp-content/plugins/contentai-plugin/**/*.module.css
-license.txt
-readme.html
-my-first-plugin/
+# Frontend build artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/.astro/
+frontend/.env
+frontend/package-lock.json
