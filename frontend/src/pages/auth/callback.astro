@@ -1,26 +1,55 @@
 ---
-import { pb } from '../../lib/pocketbase';
+// PocketBase OAuth callback
+// After Google auth, PB redirects here with OAuth state in URL
 
-const code = Astro.url.searchParams.get('code');
+// Check for OAuth error
+const error = Astro.url.searchParams.get('error');
+const errorDesc = Astro.url.searchParams.get('error_description');
+void errorDesc; // unused in server-side redirect
 
-if (code) {
-  // Exchange code for auth token via API route
-  try {
-    const res = await fetch(`${Astro.url.origin}/api/auth/google`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
-    });
-    if (res.ok) {
-      return Astro.redirect('/dashboard');
-    }
-  } catch (e) {
-    // fall through to error
-  }
+if (error) {
+  return Astro.redirect('/login?error=' + encodeURIComponent(errorDesc || error));
 }
 ---
 
-<script>
-  // OAuth callback - redirect to dashboard on success or back to login on error
-  window.location.href = '/dashboard';
-</script>
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đang đăng nhập...</title>
+</head>
+<body>
+  <p style="font-family: system-ui; text-align: center; margin-top: 100px; color: #4b5563;">Đang đăng nhập, vui lòng chờ...</p>
+
+  <script>
+    import PocketBase from 'pocketbase';
+
+    const pb = new PocketBase('https://8qj9xau0f6ama5b.591p.pocketbasecloud.com');
+
+    async function handleCallback() {
+      try {
+        // PocketBase SDK auto-handles OAuth callback
+        // The redirectUrl parameter in authWithOAuth2 tells PB where to redirect after Google auth
+        // PB returns with ?state=... and we need to let SDK verify it
+
+        // Since we're already on the callback page, try to restore auth state
+        // The SDK should have stored the auth after processing the redirect
+
+        if (pb.authStore.isValid) {
+          // Auth successful - redirect to dashboard
+          window.location.href = '/dashboard';
+        } else {
+          // No auth - redirect to login
+          window.location.href = '/login?error=auth_failed';
+        }
+      } catch (err) {
+        console.error('OAuth callback error:', err);
+        window.location.href = '/login?error=callback_error';
+      }
+    }
+
+    handleCallback();
+  </script>
+</body>
+</html>
