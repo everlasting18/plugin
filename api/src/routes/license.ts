@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { activateLicense, verifyLicense } from "../lib/license.ts";
+import { activateLicense, verifyLicense, checkUsage } from "../lib/license.ts";
 
 const app = new Hono();
 
@@ -44,6 +44,33 @@ app.post("/verify", async (c) => {
  * POST /api/license/check
  * Quick check without activation (just verify).
  */
+
+/**
+ * POST /api/license/usage
+ * Check usage by domain (for dashboard).
+ */
+app.post("/usage", async (c) => {
+  const body = await c.req.json();
+  const { domain } = body;
+
+  if (!domain || typeof domain !== "string" || !domain.trim()) {
+    return c.json(
+      {
+        error: "Domain is required.",
+      },
+      400,
+    );
+  }
+
+  const usage = await checkUsage(domain.trim());
+  return c.json({
+    domain: domain.trim(),
+    count: usage.count,
+    limit: usage.limit,
+    remaining: usage.remaining,
+    allowed: usage.allowed,
+  });
+});
 app.post("/check", async (c) => {
   const body = await c.req.json();
   const { key, site_url } = body;

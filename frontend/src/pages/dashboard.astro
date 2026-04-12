@@ -259,8 +259,8 @@ import Header from '../components/Header.astro';
   const usageCount = document.getElementById('usageCount') as HTMLSpanElement;
   const userInfoEl = document.querySelector('.user-info p') as HTMLParagraphElement;
 
-  const API_URL = 'https://api.contentai.vn/api';
-  const PB_URL = 'https://8qj9xau0f6ama5b.591p.pocketbasecloud.com';
+  const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
+  const PB_URL = import.meta.env.PUBLIC_PB_URL || 'https://8qj9xau0f6ama5b.591p.pocketbasecloud.com';
 
   // Load saved data from localStorage
   const savedDomain = localStorage.getItem('contentai_domain');
@@ -297,11 +297,11 @@ import Header from '../components/Header.astro';
   checkAuth();
 
   // Check existing license
-  async function checkLicense() {
+  async function checkUsage() {
     if (!savedDomain) return;
 
     try {
-      const res = await fetch(`${API_URL}/license/check`, {
+      const res = await fetch(`${API_URL}/license/usage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ domain: savedDomain }),
@@ -309,20 +309,20 @@ import Header from '../components/Header.astro';
 
       if (res.ok) {
         const data = await res.json();
-        showLicenseInfo(data);
+        showUsageInfo(data);
       }
     } catch {
       // ignore
     }
   }
 
-  checkLicense();
+  checkUsage();
 
-  function showLicenseInfo(data: any) {
+  function showUsageInfo(data: any) {
     licenseInfo.style.display = 'block';
-    licenseStatus.textContent = data.tier === 'pro' ? 'Pro' : 'Free';
-    licenseStatus.className = `badge badge-${data.tier}`;
-    licenseTier.textContent = data.tier === 'pro' ? 'Pro - Unlimited' : 'Free - 5 bài/tháng';
+    licenseStatus.textContent = savedKey ? 'Pro' : 'Free';
+    licenseStatus.className = `badge badge-${savedKey ? 'pro' : 'free'}`;
+    licenseTier.textContent = savedKey ? 'Pro - Unlimited' : 'Free - 5 bài/tháng';
     usageCount.textContent = `${data.count || 0} / ${data.limit || 5}`;
   }
 
