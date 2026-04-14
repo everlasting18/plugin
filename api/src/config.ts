@@ -1,5 +1,6 @@
-// Load .env file (Deno 1.38+ hỗ trợ native)
-import "https://deno.land/std@0.224.0/dotenv/load.ts";
+// Load .env file for local development
+// @ts-ignore: dotenv works at runtime
+await import("dotenv/load.ts").catch(() => {});
 
 export const config = {
   port: parseInt(Deno.env.get("PORT") || "3000", 10),

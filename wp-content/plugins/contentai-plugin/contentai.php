@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
 function contentai_get_api_url() {
     $site_url = home_url();
     $is_local = (strpos($site_url, 'localhost') !== false || strpos($site_url, '127.0.0.1') !== false);
-    return $is_local ? 'http://localhost:3000/api' : 'https://api.contentai.vn/api';
+    return $is_local ? 'http://localhost:3000/api' : 'https://2ijcf5f4gz4hucy.591p.pocketbasecloud.com/api';
 }
 
 define('CONTENTAI_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -109,6 +109,240 @@ function contentai_generate_jwt($user_id) {
     $signature = base64_encode(hash_hmac('sha256', "$header.$payload_encoded", $secret, true));
     return "$header.$payload_encoded.$signature";
 }
+
+// ============================================================
+// CUSTOM REST API — Hoạt động với mọi permalink setting (kể cả "Mặc định")
+// ============================================================
+
+add_action('rest_api_init', function () {
+    // Helper: verify nonce auth
+    $authenticate = function ($request) {
+        $user_id = get_current_user_id();
+        if ($user_id === 0) {
+            return new WP_Error('rest_not_logged_in', 'Bạn cần đăng nhập.', ['status' => 401]);
+        }
+        return $user_id;
+    };
+
+    // GET /wp-json/contentai/v1/categories
+    register_rest_route('contentai/v1', '/categories', [
+        'methods'  => 'GET',
+        'callback' => function ($request) use ($authenticate) {
+            $user_id = $authenticate($request);
+            if (is_wp_error($user_id)) return $user_id;
+
+            $cats = get_categories(['hide_empty' => false]);
+            return array_values(array_map(fn($c) => [
+                'id'   => $c->term_id,
+                'name' => $c->name,
+                'slug' => $c->slug,
+            ], array_filter($cats, fn($c) => $c->term_id !== 1)));
+        },
+        'permission_callback' => '__return_true',
+    ]);
+
+    // GET /wp-json/contentai/v1/posts?status=draft|publish|future&after=&before=
+    register_rest_route('contentai/v1', '/posts', [
+        'methods'  => 'GET',
+        'callback' => function ($request) use ($authenticate) {
+            $user_id = $authenticate($request);
+            if (is_wp_error($user_id)) return $user_id;
+
+            $status = $request->get_param('status') ?: 'draft';
+            $after  = $request->get_param('after');
+            $before = $request->get_param('before');
+
+            $args = [
+                'post_type'      => 'post',
+                'post_status'    => $status,
+                'posts_per_page' => 100,
+                'orderby'        => 'date',
+                'order'          => 'desc',
+            ];
+            if ($after)  $args['date_after']  = $after;
+            if ($before) $args['date_before'] = $before;
+
+            $posts = get_posts($args);
+            return array_values(array_map(fn($p) => [
+                'id'           => $p->ID,
+                'title'        => get_the_title($p),
+                'content'      => $p->post_content,
+                'status'       => $p->post_status,
+                'date'         => $p->post_date,
+                'modified'     => $p->post_modified,
+                'categories'   => get_the_category($p->ID),
+                'link'         => get_permalink($p),
+                'thumbnail'    => get_the_post_thumbnail_url($p, 'thumbnail'),
+            ], $posts));
+        },
+        'permission_callback' => '__return_true',
+    ]);
+
+    // POST /wp-json/contentai/v1/posts — Tạo draft mới
+    register_rest_route('contentai/v1', '/posts', [
+        'methods'  => 'POST',
+        'callback' => function ($request) use ($authenticate) {
+            $user_id = $authenticate($request);
+            if (is_wp_error($user_id)) return $user_id;
+
+            $title   = sanitize_text_field($request->get_param('title') ?: 'Untitled');
+            $content = wp_kses_post($request->get_param('content') ?: '');
+            $cats    = $request->get_param('categories') ?: [];
+
+            $post_id = wp_insert_post([
+                'post_type'    => 'post',
+                'post_status'  => 'draft',
+                'post_title'   => $title,
+                'post_content' => $content,
+                'post_author'  => $user_id,
+            ]);
+
+            if (is_wp_error($post_id)) return $post_id;
+
+            if (!empty($cats)) {
+                wp_set_post_categories($post_id, array_map('intval', $cats));
+            }
+
+            return ['id' => $post_id, 'link' => get_permalink($post_id)];
+        },
+        'permission_callback' => '__return_true',
+    ]);
+
+    // POST /wp-json/contentai/v1/schedule — Lên lịch bài viết
+    register_rest_route('contentai/v1', '/schedule', [
+        'methods'  => 'POST',
+        'callback' => function ($request) use ($authenticate) {
+            $user_id = $authenticate($request);
+            if (is_wp_error($user_id)) return $user_id;
+
+            $post_id   = (int) $request->get_param('post_id');
+            $date_gmt  = sanitize_text_field($request->get_param('date_gmt'));
+
+            if (!$post_id || !get_post($post_id)) {
+                return new WP_Error('rest_invalid_post', 'Bài viết không tồn tại.', ['status' => 404]);
+            }
+
+            // Parse date và set post sang future
+            $date = date_create($date_gmt, new DateTimeZone('UTC'));
+            if (!$date) {
+                return new WP_Error('rest_invalid_date', 'Định dạng ngày không hợp lệ.', ['status' => 400]);
+            }
+
+            $result = wp_update_post([
+                'ID'            => $post_id,
+                'post_status'   => 'future',
+                'post_date'     => $date->format('Y-m-d H:i:s'),
+                'post_date_gmt' => $date->format('Y-m-d H:i:s'),
+                'edit_date'     => true,
+            ]);
+
+            if (is_wp_error($result)) return $result;
+
+            return ['success' => true, 'post_id' => $post_id, 'scheduled_date' => $date_gmt];
+        },
+        'permission_callback' => '__return_true',
+    ]);
+});
+
+// AJAX fallback — dùng khi REST API bị block
+add_action('wp_ajax_contentai_api', function () {
+    $user_id = get_current_user_id();
+    if ($user_id === 0) {
+        wp_send_json_error(['message' => 'Bạn cần đăng nhập.'], 401);
+    }
+
+    // New format: _path=contentai/v1/posts&status=draft&after=... (separate params)
+    // Old format fallback: endpoint=contentai/v1/posts?status=draft
+    $path = isset($_REQUEST['_path']) ? sanitize_text_field($_REQUEST['_path']) : '';
+    if (empty($path)) {
+        // Fallback to old endpoint param
+        $raw = isset($_REQUEST['endpoint']) ? sanitize_text_field($_REQUEST['endpoint']) : '';
+        $raw = preg_replace('#^contentai/v1/#', '', $raw);
+        $qpos = strpos($raw, '?');
+        if ($qpos !== false) {
+            $path = substr($raw, 0, $qpos);
+            parse_str(substr($raw, $qpos + 1), $_REQUEST);
+        } else {
+            $path = $raw;
+        }
+    } else {
+        $path = preg_replace('#^contentai/v1/#', '', $path);
+    }
+
+    $method = $_SERVER['REQUEST_METHOD'];
+    error_log('[ContentAI AJAX] path=' . $path . ' status=' . ($_REQUEST['status'] ?? 'none') . ' after=' . ($_REQUEST['after'] ?? 'none'));
+
+    switch ($path) {
+        case 'categories':
+            $cats = get_categories(['hide_empty' => false]);
+            $result = array_values(array_map(fn($c) => [
+                'id' => $c->term_id, 'name' => $c->name, 'slug' => $c->slug,
+            ], array_filter($cats, fn($c) => $c->term_id !== 1)));
+            error_log('[ContentAI AJAX] categories result count=' . count($result));
+            wp_send_json($result);
+            break;
+
+        case 'posts': {
+            $status = sanitize_text_field($_REQUEST['status'] ?? 'draft');
+            $after  = sanitize_text_field($_REQUEST['after'] ?? '');
+            $before = sanitize_text_field($_REQUEST['before'] ?? '');
+            $args = ['post_type' => 'post', 'post_status' => $status, 'posts_per_page' => 100];
+            if ($after)  $args['date_after']  = $after;
+            if ($before) $args['date_before'] = $before;
+            $posts = get_posts($args);
+            $result = array_values(array_map(fn($p) => [
+                'id' => $p->ID, 'title' => get_the_title($p), 'content' => $p->post_content,
+                'status' => $p->post_status, 'date' => $p->post_date,
+                'categories' => get_the_category($p->ID),
+            ], $posts));
+            error_log('[ContentAI AJAX] posts result count=' . count($result) . ' status=' . $status);
+            wp_send_json($result);
+            break;
+        }
+
+        default:
+            error_log('[ContentAI AJAX] unknown endpoint: ' . ($endpoint_base ?: 'empty'));
+            wp_send_json_error(['message' => 'Unknown endpoint: ' . $endpoint_base], 400);
+    }
+});
+
+// AJAX: /admin-ajax.php?action=contentai_schedule
+add_action('wp_ajax_contentai_schedule', function () {
+    $user_id = get_current_user_id();
+    if ($user_id === 0) {
+        wp_send_json_error(['message' => 'Bạn cần đăng nhập.'], 401);
+    }
+
+    $post_id  = (int) ($_POST['post_id'] ?? 0);
+    $date_gmt = sanitize_text_field($_POST['date_gmt'] ?? '');
+
+    if (!$post_id || !get_post($post_id)) {
+        wp_send_json_error(['message' => 'Bài viết không tồn tại.'], 404);
+    }
+
+    // Parse the incoming date and apply WP blog timezone
+    $tz_string = get_option('timezone_string') ?: 'UTC';
+    try {
+        $date_utc = new DateTime($date_gmt, new DateTimeZone('UTC'));
+        $date_utc->setTimezone(new DateTimeZone($tz_string));
+    } catch (Exception $e) {
+        wp_send_json_error(['message' => 'Định dạng ngày không hợp lệ.'], 400);
+    }
+
+    $result = wp_update_post([
+        'ID'            => $post_id,
+        'post_status'   => 'future',
+        'post_date'     => $date_utc->format('Y-m-d H:i:s'),
+        'post_date_gmt' => gmdate('Y-m-d H:i:s', strtotime($date_gmt)),
+        'edit_date'     => true,
+    ]);
+
+    if (is_wp_error($result)) {
+        wp_send_json_error(['message' => $result->get_error_message()], 500);
+    }
+
+    wp_send_json_success(['post_id' => $post_id, 'scheduled_date' => $date_gmt]);
+});
 
 // ============================================================
 // ADMIN MENU — Sidebar với parent/child categories
@@ -282,8 +516,8 @@ function contentai_settings_page() {
     $license = contentai_check_license_status();
     $is_pro  = ($license['tier'] ?? 'free') === 'pro' && ($license['valid'] ?? false);
     $key     = get_option('contentai_license_key', '');
-    $error   = isset($_GET['license_error']) ? esc_html($_GET['license_error']) : '';
-    $success = isset($_GET['license_success']) ? esc_html($_GET['license_success']) : '';
+    $error   = isset($_GET['license_error']) ? urldecode($_GET['license_error']) : '';
+    $success = isset($_GET['license_success']) ? true : false;
 
     // Handle form submission
     if (isset($_POST['contentai_license_nonce']) && wp_verify_nonce($_POST['contentai_license_nonce'], 'contentai_license_action')) {
@@ -291,12 +525,16 @@ function contentai_settings_page() {
         if (!empty($new_key)) {
             $result = contentai_verify_license($new_key, home_url());
             contentai_save_license_result($new_key, $result);
+            // Refresh values after save
+            $key = get_option('contentai_license_key', '');
+            $license = contentai_check_license_status();
+            $is_pro = ($license['tier'] ?? 'free') === 'pro' && ($license['valid'] ?? false);
             if ($result['valid']) {
-                wp_redirect(admin_url('admin.php?page=contentai-settings&license_success=1'));
-                exit;
+                $success = true;
+                $error = '';
             } else {
-                wp_redirect(admin_url('admin.php?page=contentai-settings&license_error=' . urlencode($result['message'])));
-                exit;
+                $success = false;
+                $error = $result['message'] ?: 'License key không hợp lệ.';
             }
         } else {
             // Clear license
@@ -305,23 +543,31 @@ function contentai_settings_page() {
             delete_option('contentai_license_status');
             delete_option('contentai_license_expires');
             delete_option('contentai_license_last_check');
-            wp_redirect(admin_url('admin.php?page=contentai-settings'));
-            exit;
+            delete_option('contentai_license_last_check');
+            $key = '';
+            $is_pro = false;
+            $success = false;
+            $error = '';
         }
     }
 
+    $redirect_url = admin_url('admin.php?page=contentai-settings');
+    if ($success) {
+        echo '<script>window.location.href = ' . json_encode($redirect_url . '&license_success=1') . ';</script>';
+        echo '<div class="notice notice-success"><p>License key đã được kích hoạt thành công! Trang sẽ được tải lại...</p></div>';
+    }
     ?>
     <div class="wrap">
         <h1>Cài đặt ContentAI</h1>
 
         <?php if ($error): ?>
-            <div class="notice notice-error"><p><?php echo $error; ?></p></div>
+            <div class="notice notice-error"><p><?php echo esc_html($error); ?></p></div>
         <?php endif; ?>
-        <?php if ($success): ?>
+        <?php if ($success && !isset($_GET['license_success'])): ?>
             <div class="notice notice-success"><p>License key đã được kích hoạt thành công!</p></div>
         <?php endif; ?>
 
-        <form method="post" action="" style="max-width:600px; margin-top:20px;">
+        <form method="post" action="<?php echo esc_url($redirect_url); ?>" style="max-width:600px; margin-top:20px;">
             <?php wp_nonce_field('contentai_license_action', 'contentai_license_nonce'); ?>
             <h2>License Key</h2>
             <table class="form-table">
@@ -331,7 +577,7 @@ function contentai_settings_page() {
                         <?php if ($is_pro): ?>
                             <span style="background:#16a34a; color:#fff; padding:3px 12px; border-radius:12px; font-weight:600;">Pro</span>
                             <?php if (!empty($license['expires'])): ?>
-                                <span style="color:#888; font-size:12px;"> — Hết hạn: <?php echo esc_html(date('d/m/Y', $license['expires'])); ?></span>
+                                <span style="color:#888; font-size:12px;"> — Hết hạn: <?php echo esc_html(date('d/m/Y', (int)$license['expires'] / 1000)); ?></span>
                             <?php endif; ?>
                         <?php else: ?>
                             <span style="background:#e0e0e0; color:#555; padding:3px 12px; border-radius:12px; font-weight:600;">Free</span>
@@ -343,20 +589,19 @@ function contentai_settings_page() {
                     <th scope="row">License Key</th>
                     <td>
                         <?php if (!empty($key)): ?>
-                            <code style="font-size:11px; background:#f0f0f0; padding:4px 8px; border-radius:4px;"><?php echo esc_html($key); ?></code>
-                            <p class="description">Đã đăng ký. Key sẽ tự động xác minh lại mỗi 24h.</p>
-                        <?php else: ?>
-                            <input type="text" name="contentai_license_key" class="regular-text" placeholder="Nhập license key (VD: DEMO-PRO-XXXX)" style="max-width:400px;" />
-                            <p class="description">Nhận license key tại <a href="https://contentai.vn" target="_blank">contentai.vn</a></p>
+                            <code style="font-size:11px; background:#f0f0f0; padding:4px 8px; border-radius:4px; display:block; margin-bottom:8px;"><?php echo esc_html($key); ?></code>
+                            <p class="description" style="margin-bottom:8px;">Đã đăng ký. Key sẽ tự động xác minh lại mỗi 24h.</p>
                         <?php endif; ?>
+                        <input type="text" name="contentai_license_key" class="regular-text" value="<?php echo esc_attr($key); ?>" placeholder="Nhập license key (VD: DEMO-PRO-XXXX)" style="max-width:400px;" />
+                        <p class="description">Nhận license key tại <a href="https://contentai.vn" target="_blank">contentai.vn</a></p>
                     </td>
                 </tr>
             </table>
             <p class="submit">
+                <button type="submit" class="button button-primary">Kích hoạt / Cập nhật License</button>
                 <?php if (!empty($key)): ?>
-                    <button type="submit" class="button">Cập nhật License Key</button>
-                <?php else: ?>
-                    <button type="submit" class="button button-primary">Kích hoạt License</button>
+                    <span style="margin-left:8px; color:#666; font-size:12px; vertical-align:middle;">hoặc</span>
+                    <button type="submit" name="contentai_license_key" value="" class="button" style="margin-left:4px;" onclick="return confirm('Bạn có chắc muốn xóa license key?');">Xóa License</button>
                 <?php endif; ?>
             </p>
         </form>

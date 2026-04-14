@@ -4,7 +4,9 @@ import { config } from "./config.ts";
 import routes from "./routes/mod.ts";
 import { startLogCapture } from "./lib/logStore.ts";
 
-const app = new Hono();
+type AppVars = { reqId: string };
+
+const app = new Hono<{ Variables: AppVars }>();
 
 // Request ID middleware — attaches x-request-id header
 app.use("/*", async (c, next) => {

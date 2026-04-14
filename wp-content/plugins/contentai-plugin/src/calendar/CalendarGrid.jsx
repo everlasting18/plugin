@@ -89,11 +89,13 @@ export default function CalendarGrid({
     setDragOverCell(null);
     try {
       const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      console.log('[CalendarGrid] drop data:', data);
       const actualYear = mon < 0 ? year - 1 : mon > 11 ? year + 1 : year;
       const actualMonth = ((mon % 12) + 12) % 12;
       const targetDate = new Date(actualYear, actualMonth, day);
+      console.log('[CalendarGrid] calling onDropPost', data.id, targetDate);
       onDropPost?.(data.id, targetDate);
-    } catch {}
+    } catch (err) { console.error('[CalendarGrid] drop error:', err); }
   };
 
   if (view === 'list') {
@@ -117,7 +119,7 @@ export default function CalendarGrid({
                   {new Date(p.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                 </span>
                 <span className={styles.listStatus} data-status={p.status}>{p.status === 'publish' ? 'Đã đăng' : 'Lên lịch'}</span>
-                <span className={styles.listTitle} dangerouslySetInnerHTML={{ __html: p.title?.rendered }} />
+                <span className={styles.listTitle}>{p.title?.rendered || p.title}</span>
                 <span className={styles.listCategory}>
                   {p._categoryNames?.join(', ') || ''}
                 </span>

@@ -22,17 +22,80 @@ const FRAMEWORKS = [
   { value: 'hero', label: "Hero's Journey" },
 ];
 
+// ─── License helpers ────────────────────────────────────────────────────────
+
+function getLicenseInfo() {
+  if (typeof window === 'undefined' || !window.contentaiData) {
+    return { isPro: false, usedCount: 0, freeLimit: 5 };
+  }
+  const d = window.contentaiData;
+  return {
+    isPro: !!d.isPro,
+    usedCount: parseInt(d.usedCount, 10) || 0,
+    freeLimit: parseInt(d.freeLimit, 10) || 5,
+  };
+}
+
+function getUpgradeUrl() {
+  const siteUrl = window.contentaiData?.siteUrl
+    ? encodeURIComponent(window.contentaiData.siteUrl)
+    : '';
+  return `https://contentai.vn/dashboard${siteUrl ? `?domain=${siteUrl}` : ''}`;
+}
+
+// ─── Error display (contextual messages based on error code) ───────────────
+
+function getErrorDisplay(err) {
+  if (!err) return null;
+  const code = err.code || '';
+  const status = err.status || 0;
+
+  if (code === 'usage_limit_reached' || status === 429) {
+    return {
+      message: err.message || 'Bạn đã dùng hết 5 bài miễn phí/tháng. Nâng cấp Pro để sử dụng không giới hạn.',
+      type: 'warning',
+    };
+  }
+  if (code === 'license_invalid' || status === 403) {
+    return {
+      message: err.message || 'License key không hợp lệ hoặc đã hết hạn. Kiểm tra lại trong Settings.',
+      type: 'error',
+    };
+  }
+  if (code === 'auth_required' || status === 401) {
+    return {
+      message: err.message || 'Vui lòng nhập domain trong Settings để bắt đầu.',
+      type: 'error',
+    };
+  }
+  return {
+    message: err.message || 'Có lỗi xảy ra. Vui lòng thử lại.',
+    type: 'error',
+  };
+}
+
 export default function LeftPanel({ keyword, onKeywordChange, results, addResult, removeResult }) {
   const containerRef = useRef(null);
   const textareaRef = useRef(null);
   const dropdownRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [errorType, setErrorType] = useState('error'); // 'error' | 'warning'
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [expandedMenu, setExpandedMenu] = useState(null);
   const [settings, setSettings] = useState({ count: 1, audience: 'general', framework: 'none', webSearch: true });
   const [streamLines, setStreamLines] = useState([]);
+  const [licenseInfo, setLicenseInfo] = useState(getLicenseInfo);
 
+  // Refresh license info periodically
+  useEffect(() => {
+    const interval = setInterval(() => setLicenseInfo(getLicenseInfo()), 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Proactive check: warn if close to limit (free only)
+  const remaining = licenseInfo.freeLimit - licenseInfo.usedCount;
+  const nearLimit = !licenseInfo.isPro && remaining > 0 && remaining <= 2;
 
   useEffect(() => {
     const tryInject = () => {
@@ -61,15 +124,24 @@ export default function LeftPanel({ keyword, onKeywordChange, results, addResult
 
   const handleGenerate = useCallback(async () => {
     if (!keyword.trim() || loading) return;
-    setLoading(true); setError('');
+
+    // Proactive check for free users near limit
+    if (!licenseInfo.isPro && remaining <= 0) {
+      const errDisplay = getErrorDisplay({ code: 'usage_limit_reached' });
+      setError(errDisplay.message);
+      setErrorType(errDisplay.type);
+      return;
+    }
+
+    setLoading(true);
+    setError('');
     setStreamLines([]);
     try {
       for await (const line of api.generateStream({ keyword, tone: 'professional', count: settings.count, audience: settings.audience, framework: settings.framework, webSearch: settings.webSearch, action: 'full_article' })) {
         if (line.startsWith('[DONE]')) {
           try {
             const data = JSON.parse(line.slice(6).trim());
-            setStreamLines([]); // Clear stream display once we have the result
-            // data.posts is an array of {content, title}
+            setStreamLines([]);
             if (Array.isArray(data.posts)) {
               data.posts.forEach(post => {
                 addResult({ type: 'full_article', label: 'Bài viết', content: post.content, title: post.title });
@@ -77,6 +149,8 @@ export default function LeftPanel({ keyword, onKeywordChange, results, addResult
             } else if (data.content) {
               addResult({ type: 'full_article', label: 'Bài viết', content: data.content, title: data.title });
             }
+            // Update usage count after successful generation
+            setLicenseInfo(prev => ({ ...prev, usedCount: prev.usedCount + 1 }));
           } catch (e) {
             console.warn('[ContentAI] Failed to parse DONE response:', e);
           }
@@ -84,24 +158,38 @@ export default function LeftPanel({ keyword, onKeywordChange, results, addResult
           setStreamLines(prev => [...prev.slice(-30), { text: line, time: Date.now() }]);
         }
       }
-    } catch (err) { setError(err.message); } finally { setLoading(false); setStreamLines([]); }
-  }, [keyword, settings, loading, addResult]);
+    } catch (err) {
+      const errDisplay = getErrorDisplay(err);
+      setError(errDisplay.message);
+      setErrorType(errDisplay.type);
+    } finally { setLoading(false); setStreamLines([]); }
+  }, [keyword, settings, loading, addResult, licenseInfo, remaining]);
 
   const handleKeyDown = useCallback((e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleGenerate(); } }, [handleGenerate]);
 
   const handleInsert = useCallback((result) => {
-    // Strip H1 block from content (title is set separately)
-    const contentNoH1 = result.content
+    const { editPost } = wp.data.dispatch('core/editor');
+
+    // Set title
+    if (result.title) {
+      editPost({ title: result.title });
+    }
+
+    // Parse HTML content to blocks and insert
+    let contentToInsert = result.content || '';
+    // Remove H1 heading from content (title is set separately)
+    contentToInsert = contentToInsert
       .replace(/<!-- wp:heading\s*\{[^}]*"level"\s*:\s*1[^}]*\}\s*-->[\s\S]*?<!-- \/wp:heading -->\s*/gi, '')
       .trim();
 
-    const { editPost } = wp.data.dispatch('core/editor');
-
-    if (contentNoH1) {
-      editPost({ content: contentNoH1 });
-    }
-    if (result.title) {
-      editPost({ title: result.title });
+    if (contentToInsert) {
+      const parsedBlocks = wp.blocks.parse(contentToInsert);
+      if (parsedBlocks.length > 0) {
+        // Get existing blocks, prepend new blocks
+        const existingBlocks = wp.data.select('core/editor').getBlocks();
+        const newBlocks = [...parsedBlocks, ...existingBlocks];
+        wp.data.dispatch('core/editor').resetBlocks(newBlocks);
+      }
     }
   }, []);
 
@@ -115,12 +203,27 @@ export default function LeftPanel({ keyword, onKeywordChange, results, addResult
 
   return createPortal(
     <div className={styles.panel}>
+      {/* ─── Header with tier badge ─── */}
       <div className={styles.header}>
         <div className={styles.logo}>C</div>
         <span className={styles.brand}>ContentAI</span>
+        {licenseInfo.isPro ? (
+          <span className={styles.tierBadgePro}>Pro</span>
+        ) : (
+          <span className={styles.tierBadgeFree}>{licenseInfo.usedCount}/{licenseInfo.freeLimit}</span>
+        )}
       </div>
 
       <div className={styles.body}>
+        {/* ─── Usage warning (near limit) ─── */}
+        {nearLimit && !loading && (
+          <div className={styles.warningBanner}>
+            <span className={styles.warningIcon}>⚠️</span>
+            <span>Còn <strong>{remaining}</strong> bài miễn phí tháng này.</span>
+            <a href={getUpgradeUrl()} target="_blank" rel="noopener" className={styles.warningLink}>Nâng cấp</a>
+          </div>
+        )}
+
         <div className={`${styles.card} ${loading ? styles.cardLoading : ''}`}>
           <textarea ref={textareaRef} className={styles.input} placeholder="Mô tả bài viết bạn muốn tạo..." value={keyword} onChange={handleInput} onKeyDown={handleKeyDown} rows={2} disabled={loading}/>
 
@@ -173,7 +276,22 @@ export default function LeftPanel({ keyword, onKeywordChange, results, addResult
             {streamLines.map((l, i) => <div key={i} className={styles.streamLine}>{l.text}</div>)}
           </div>
         )}
-        {error && <div className={styles.err}>{error}</div>}
+
+        {/* ─── Contextual Error / Warning ─── */}
+        {error && (
+          <div className={errorType === 'warning' ? styles.warningBox : styles.err}>
+            <div className={styles.errHeader}>
+              {errorType === 'warning' ? '⚠️' : '❌'}
+              <span>{errorType === 'warning' ? 'Hết quota' : 'Lỗi'}</span>
+            </div>
+            <p className={styles.errMessage}>{error}</p>
+            {errorType === 'warning' && (
+              <a href={getUpgradeUrl()} target="_blank" rel="noopener" className={styles.upgradeBtn}>
+                Nâng cấp Pro — Không giới hạn
+              </a>
+            )}
+          </div>
+        )}
 
         {results.length > 0 && (
           <div className={styles.res}>

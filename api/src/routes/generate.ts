@@ -24,6 +24,7 @@ const app = new Hono();
  *   Error chunk:     [ERROR] error message
  */
 app.post("/", async (c) => {
+  // @ts-ignore: reqId injected by parent app middleware
   const reqId = c.get("reqId") as string || "unknown";
   const body = await c.req.json();
   const {

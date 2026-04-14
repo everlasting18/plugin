@@ -1,8 +1,8 @@
 import styles from './PostCard.module.css';
 
 function getSeoScore(post) {
-  const title = post.title?.rendered || '';
-  const contentLen = (post.content?.rendered || '').length;
+  const title = post.title?.rendered || post.title || '';
+  const contentLen = (post.content?.rendered || post.content || '').length;
   let score = 0;
   if (title.length >= 20 && title.length <= 70) score += 30;
   else if (title.length > 0) score += 15;
@@ -20,9 +20,15 @@ function formatDate(dateStr) {
 }
 
 export default function PostCard({ post, variant = 'sidebar', onDragStart }) {
-  const title = post.title?.rendered || 'Không có tiêu đề';
+  const title = post.title?.rendered || post.title || 'Không có tiêu đề';
   const seo = getSeoScore(post);
-  const adminUrl = window.contentaiData?.adminUrl || '/wp-admin/';
+  // Get admin URL from current page path — works on localhost and production
+  const getAdminUrl = () => {
+    const path = window.location.pathname;
+    // Extract the base path up to wp-admin (or admin.php page)
+    const match = path.match(/^(\/[^/]+\/wp-admin\/)/);
+    return match ? match[1] : '/wp-admin/';
+  };
 
   const handleDragStart = (e) => {
     e.dataTransfer.setData('application/json', JSON.stringify({ id: post.id }));
@@ -31,7 +37,7 @@ export default function PostCard({ post, variant = 'sidebar', onDragStart }) {
   };
 
   const handleClick = () => {
-    window.location.href = `${adminUrl}post.php?post=${post.id}&action=edit`;
+    window.location.href = `${getAdminUrl()}post.php?post=${post.id}&action=edit`;
   };
 
   if (variant === 'calendar') {
@@ -44,7 +50,7 @@ export default function PostCard({ post, variant = 'sidebar', onDragStart }) {
         title={title}
       >
         <span className={styles.dot} />
-        <span className={styles.calendarTitle} dangerouslySetInnerHTML={{ __html: title }} />
+        <span className={styles.calendarTitle}>{title}</span>
       </div>
     );
   }
@@ -56,7 +62,7 @@ export default function PostCard({ post, variant = 'sidebar', onDragStart }) {
       onDragStart={handleDragStart}
       onClick={handleClick}
     >
-      <div className={styles.cardTitle} dangerouslySetInnerHTML={{ __html: title }} />
+      <div className={styles.cardTitle}>{title}</div>
       <div className={styles.cardMeta}>
         <span className={styles.tag}>Nháp</span>
         <span className={styles.seo}>SEO {seo}</span>
