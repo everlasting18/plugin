@@ -14,6 +14,8 @@ const client = new OpenAI({
 interface AiOptions {
   maxTokens?: number;
   model?: string;
+  systemPrompt?: string;
+  temperature?: number;
 }
 
 /**
@@ -22,13 +24,13 @@ interface AiOptions {
  */
 export async function aiComplete(
   prompt: string,
-  { maxTokens = 1500, model }: AiOptions = {},
+  { maxTokens = 1500, model, systemPrompt, temperature = 0.7 }: AiOptions = {},
 ): Promise<string> {
   const primaryModel = model || config.openrouterModel;
   const fallbackModel = config.openrouterFallback;
 
   try {
-    return await callModel(prompt, primaryModel, maxTokens);
+    return await callModel(prompt, primaryModel, maxTokens, systemPrompt, temperature);
   } catch (err: unknown) {
     const status = (err as { status?: number }).status;
     const isRetryable = status === 429 || status === 503 || status === 529;
@@ -38,7 +40,7 @@ export async function aiComplete(
         fallbackModel,
         status,
       });
-      return callModel(prompt, fallbackModel, maxTokens);
+      return callModel(prompt, fallbackModel, maxTokens, systemPrompt, temperature);
     }
     logger.error("ai model call failed", {
       model: primaryModel,
@@ -53,13 +55,21 @@ async function callModel(
   prompt: string,
   model: string,
   maxTokens: number,
+  systemPrompt?: string,
+  temperature = 0.7,
 ): Promise<string> {
   const start = Date.now();
+  const messages: { role: "system" | "user"; content: string }[] = [];
+  if (systemPrompt?.trim()) {
+    messages.push({ role: "system", content: systemPrompt.trim() });
+  }
+  messages.push({ role: "user", content: prompt });
+
   const completion = await client.chat.completions.create({
     model,
     max_tokens: maxTokens,
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0.7,
+    messages,
+    temperature,
   });
   const ms = Date.now() - start;
   const usage = completion.usage;

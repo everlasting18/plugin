@@ -8,17 +8,18 @@ import Header from '../components/Header.astro';
 
   <section class="login-section">
     <div class="login-card">
+      <div class="login-chip">Access Console</div>
       <div class="login-header">
-        <h1>Chào mừng bạn</h1>
-        <p>Đăng nhập để quản lý license và tải plugin</p>
+        <h1>Đăng nhập để mở workspace ContentAI</h1>
+        <p>Quản lý website, quota miễn phí và license Pro từ một dashboard duy nhất.</p>
       </div>
 
       <button id="googleLoginBtn" class="btn btn-google" style="padding: 14px 24px; font-size: 16px;">
         <svg width="20" height="20" viewBox="0 0 24 24">
-          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
         </svg>
         <span id="btnText">Đăng nhập với Google</span>
       </button>
@@ -29,26 +30,26 @@ import Header from '../components/Header.astro';
         <span>hoặc</span>
       </div>
 
-      <p style="text-align: center; color: var(--gray-500); font-size: 14px;">
+      <p class="login-note">
         Bạn chưa có tài khoản? Đăng nhập Google sẽ tự động tạo tài khoản cho bạn.
       </p>
 
       <div class="login-features">
         <div class="login-feature">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M5 13l4 4L19 7" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M5 13l4 4L19 7" stroke="#1f9d74" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
-          <span>Miễn phí 5 bài/tháng</span>
+          <span>Miễn phí 5 bài mỗi tháng</span>
         </div>
         <div class="login-feature">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M5 13l4 4L19 7" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M5 13l4 4L19 7" stroke="#1f9d74" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
           <span>Tải plugin WordPress</span>
         </div>
         <div class="login-feature">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M5 13l4 4L19 7" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M5 13l4 4L19 7" stroke="#1f9d74" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
           <span>Quản lý license key</span>
         </div>
@@ -58,45 +59,41 @@ import Header from '../components/Header.astro';
 </Layout>
 
 <script>
-  import PocketBase from 'pocketbase';
+  import { createPocketBaseClient, syncPocketBaseCookie } from '../lib/pocketbase.ts';
+  import { runtimeConfig } from '../lib/runtime.ts';
 
-  const PB_URL = 'https://8qj9xau0f6ama5b.591p.pocketbasecloud.com';
-  const pb = new PocketBase(PB_URL);
+  const pb = createPocketBaseClient(runtimeConfig.pbUrl);
 
   const googleBtn = document.getElementById('googleLoginBtn') as HTMLButtonElement;
   const btnText = document.getElementById('btnText') as HTMLSpanElement;
   const errorMsg = document.getElementById('errorMsg') as HTMLDivElement;
 
-  // Check if already logged in
+  function syncAuthCookie() {
+    syncPocketBaseCookie(pb);
+  }
+
   if (pb.authStore.isValid) {
+    syncAuthCookie();
     window.location.href = '/dashboard';
   }
 
   googleBtn.addEventListener('click', async () => {
     googleBtn.disabled = true;
-    btnText.textContent = 'Đang chuyển hướng...';
+    btnText.textContent = 'Đang đăng nhập...';
+    errorMsg.style.display = 'none';
 
     try {
-      // Use PocketBase SDK OAuth flow
       await pb.collection('users').authWithOAuth2({
         provider: 'google',
-        redirectUrl: window.location.origin + '/auth/callback',
       });
-
-      // OAuth successful - SDK stores the token automatically
-      // Redirect to dashboard
+      syncAuthCookie();
       window.location.href = '/dashboard';
     } catch (err: any) {
-      console.error('OAuth error:', err);
-
-      // Check if it's a redirect error (user cancelled, etc.)
       if (err?.isAbort) {
         btnText.textContent = 'Đăng nhập với Google';
         googleBtn.disabled = false;
         return;
       }
-
-      // Show error
       const msg = err?.message || 'Không thể đăng nhập. Vui lòng thử lại.';
       errorMsg.textContent = msg;
       errorMsg.style.display = 'block';
@@ -113,34 +110,52 @@ import Header from '../components/Header.astro';
     align-items: center;
     justify-content: center;
     padding: 48px 24px;
-    background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
+    background:
+      radial-gradient(circle at top left, rgb(15 118 110 / 0.1), transparent 24%),
+      radial-gradient(circle at bottom right, rgb(219 122 57 / 0.14), transparent 26%),
+      linear-gradient(180deg, #fffefb 0%, #f7f2e9 100%);
   }
 
   .login-card {
-    background: white;
-    border-radius: var(--radius);
-    border: 1px solid var(--gray-200);
+    background: rgb(255 255 255 / 0.76);
+    border-radius: 32px;
+    border: 1px solid rgb(21 33 27 / 0.08);
     padding: 48px;
-    max-width: 420px;
+    max-width: 440px;
     width: 100%;
     box-shadow: var(--shadow-lg);
+    backdrop-filter: blur(16px);
+  }
+
+  .login-chip {
+    display: inline-flex;
+    margin-bottom: 18px;
+    padding: 9px 14px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: #905022;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
   }
 
   .login-header {
-    text-align: center;
+    text-align: left;
     margin-bottom: 32px;
   }
 
   .login-header h1 {
-    font-size: 28px;
-    font-weight: 800;
-    color: var(--gray-900);
+    font-size: 34px;
+    font-weight: 700;
+    color: var(--ink-950);
     margin-bottom: 8px;
+    line-height: 1.02;
   }
 
   .login-header p {
     font-size: 15px;
-    color: var(--gray-500);
+    color: var(--ink-700);
   }
 
   .login-divider {
@@ -155,12 +170,18 @@ import Header from '../components/Header.astro';
     content: '';
     flex: 1;
     height: 1px;
-    background: var(--gray-200);
+    background: rgb(21 33 27 / 0.08);
   }
 
   .login-divider span {
     font-size: 13px;
-    color: var(--gray-400);
+    color: var(--ink-600);
+  }
+
+  .login-note {
+    text-align: center;
+    color: var(--ink-700);
+    font-size: 14px;
   }
 
   .login-features {
@@ -168,9 +189,10 @@ import Header from '../components/Header.astro';
     display: flex;
     flex-direction: column;
     gap: 12px;
-    background: var(--gray-50);
+    background: rgb(247 242 233 / 0.88);
     padding: 20px;
-    border-radius: 12px;
+    border-radius: 22px;
+    border: 1px solid rgb(21 33 27 / 0.08);
   }
 
   .login-feature {
@@ -178,6 +200,6 @@ import Header from '../components/Header.astro';
     align-items: center;
     gap: 10px;
     font-size: 14px;
-    color: var(--gray-700);
+    color: var(--ink-800);
   }
 </style>

@@ -60,6 +60,22 @@ const LEVEL_COLOR: Record<LogLevel, string> = {
   ERROR: C.red,
 };
 
+function stripAnsi(text: string): string {
+  let out = "";
+  let i = 0;
+  while (i < text.length) {
+    if (text.charCodeAt(i) === 27 && text[i + 1] === "[") {
+      i += 2;
+      while (i < text.length && text[i] !== "m") i++;
+      if (i < text.length) i++;
+      continue;
+    }
+    out += text[i];
+    i++;
+  }
+  return out;
+}
+
 function formatHuman(level: LogLevel, msg: string, fields?: LogFields): string {
   const reqId = fields?.reqId as string | undefined;
   const prefix = reqId ? `${C.cyan}[${reqId.slice(0, 8)}]${C.reset}` : "";
@@ -110,8 +126,7 @@ function log(level: LogLevel, msg: string, fields?: LogFields) {
   }
 
   // Also append human-readable line to app.log
-  const plainLine = human
-    .replace(/\x1b\[[0-9;]*m/g, ""); // strip ANSI colors for plain file
+  const plainLine = stripAnsi(human);
   writeToFile(plainLine);
 }
 

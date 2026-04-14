@@ -3,13 +3,14 @@ import styles from './CalendarApp.module.css';
 import Sidebar from './Sidebar.jsx';
 import CalendarGrid from './CalendarGrid.jsx';
 import ScheduleModal from './ScheduleModal.jsx';
+import { formatLocalDateTime } from './date.js';
 
 const nonce = () => window.contentaiData?.nonce || '';
 const adminUrl = () => window.contentaiData?.adminUrl || '';
 
 // Try REST with ?rest_route= prefix, fall back to admin-ajax.php
 async function wpFetch(endpoint, options = {}) {
-  const restUrl = '/?rest_route=';
+  const restBase = window.contentaiData?.restUrl || '/?rest_route=/';
   const n = nonce();
 
   // Separate path from query string in endpoint
@@ -27,7 +28,9 @@ async function wpFetch(endpoint, options = {}) {
 
   // 1. Try REST
   try {
-    const res = await fetch(`${restUrl}${endpoint}`, {
+    const restPath = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+    const restUrl = restBase.endsWith('/') ? `${restBase}${restPath}` : `${restBase}/${restPath}`;
+    const res = await fetch(restUrl, {
       method: options.method || 'GET',
       headers: { 'X-WP-Nonce': n, 'Content-Type': 'application/json', ...options.headers },
       body: options.body ? JSON.stringify(options.body) : undefined,
@@ -83,15 +86,12 @@ export default function CalendarApp() {
   const fetchCalendarPosts = useCallback(async () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    const start = new Date(year, month, 1).toISOString();
-    const end = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
+    const start = formatLocalDateTime(new Date(year, month, 1, 0, 0, 0));
+    const end = formatLocalDateTime(new Date(year, month + 1, 0, 23, 59, 59));
     try {
       const data = await wpFetch(
-        `contentai/v1/posts?status=future&after=${start}&before=${end}`
+        `contentai/v1/posts?status=future,publish&after_local=${encodeURIComponent(start)}&before_local=${encodeURIComponent(end)}`
       );
-      // Enrich with category names
-      const catMap = {};
-      categories.forEach((c) => { catMap[c.id] = c.name; });
       data.forEach((p) => {
         p._categoryNames = (p.categories || []).map((cat) => cat.name || '').filter(Boolean);
       });
@@ -112,9 +112,7 @@ export default function CalendarApp() {
 
   // When a post is dropped on a date, show the schedule modal
   const handleDropPost = (postId, targetDate) => {
-    console.log('[Calendar] handleDropPost', postId, targetDate);
     const post = drafts.find((d) => d.id === postId) || posts.find((p) => p.id === postId);
-    console.log('[Calendar] found post:', post?.title);
     const postTitle = post?.title?.rendered || post?.title || 'Bài viết';
     setScheduleModal({ postId, postTitle, targetDate });
   };
@@ -129,7 +127,7 @@ export default function CalendarApp() {
     const formData = new FormData();
     const n = nonce();
     formData.append('post_id', scheduleModal.postId);
-    formData.append('date_gmt', scheduledDate.toISOString());
+    formData.append('date_local', formatLocalDateTime(scheduledDate));
     formData.append('_wpnonce', n);
 
     try {

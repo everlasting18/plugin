@@ -15,8 +15,7 @@ services:
       OPENROUTER_MODEL:        ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
       OPENROUTER_MODEL_FALLBACK: ${OPENROUTER_MODEL_FALLBACK:-openai/gpt-4o}
       PB_URL:                  ${PB_URL}
-      PB_ADMIN_EMAIL:          ${PB_ADMIN_EMAIL}
-      PB_ADMIN_PASSWORD:       ${PB_ADMIN_PASSWORD}
+      PB_ADMIN_TOKEN:          ${PB_ADMIN_TOKEN}
       ALLOWED_ORIGINS:         ${ALLOWED_ORIGINS}
       FREE_LIMIT:              ${FREE_LIMIT:-5}
     healthcheck:

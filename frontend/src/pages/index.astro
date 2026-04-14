@@ -10,51 +10,76 @@ import Footer from '../components/Footer.astro';
 <Layout>
   <Header />
 
-  <!-- Hero -->
   <section class="hero">
     <div class="container">
-      <div class="hero-badge">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="#6366f1"/>
-        </svg>
-        Công cụ viết bài AI hàng đầu cho WordPress
-      </div>
-      <h1 class="hero-title">
-        Viết bài SEO chuyên nghiệp<br />
-        <span class="gradient-text">chỉ trong vài giây</span>
-      </h1>
-      <p class="hero-desc">
-        ContentAI giúp bạn tạo nội dung chất lượng cao cho website WordPress với AI.
-        Hỗ trợ 8 framework viết, tối ưu SEO, tạo meta description tự động.
-      </p>
-      <div class="hero-actions">
-        <a href="/login" class="btn btn-primary" style="padding: 16px 32px; font-size: 16px;">
-          <svg width="20" height="20" viewBox="0 0 24 24">
-            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="white"/>
-            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="white"/>
-            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="white"/>
-            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="white"/>
-          </svg>
-          Bắt đầu miễn phí
-        </a>
-        <a href="#features" class="btn btn-secondary" style="padding: 16px 32px; font-size: 16px;">
-          Tìm hiểu thêm
-        </a>
-      </div>
-      <div class="hero-stats">
-        <div class="stat">
-          <strong>5 bài</strong>
-          <span>miễn phí/tháng</span>
+      <div class="hero-shell">
+        <div class="hero-copy">
+          <div class="hero-badge">
+            <span class="hero-dot"></span>
+            Editorial AI cho WordPress
+          </div>
+          <h1 class="hero-title">
+            Biến WordPress thành
+            <span>phòng biên tập AI</span>
+            gọn, nhanh và có kỷ luật.
+          </h1>
+          <p class="hero-desc">
+            ContentAI giúp đội content tạo outline, viết bài, tối ưu SEO và xuất bản ngay trong Gutenberg.
+            Không phải nhảy tab. Không phải copy-paste. Không phải vá lại cấu trúc sau cùng.
+          </p>
+          <div class="hero-actions">
+            <a href="/login" class="btn btn-primary hero-btn">Bắt đầu miễn phí</a>
+            <a href="#pricing" class="btn btn-secondary hero-btn">Xem gói Pro</a>
+          </div>
+          <div class="hero-stats">
+            <div class="stat">
+              <strong>5 bài</strong>
+              <span>quota miễn phí mỗi tháng</span>
+            </div>
+            <div class="stat">
+              <strong>Auto + 5</strong>
+              <span>framework viết có thể ép tay</span>
+            </div>
+            <div class="stat">
+              <strong>Gutenberg</strong>
+              <span>viết, rewrite và schedule ngay trong editor</span>
+            </div>
+          </div>
         </div>
-        <div class="stat-divider"></div>
-        <div class="stat">
-          <strong>8 framework</strong>
-          <span>viết bài</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat">
-          <strong>100%</strong>
-          <span>tiếng Việt</span>
+
+        <div class="hero-board">
+          <div class="board-card board-card-main">
+            <div class="board-card-head">
+              <span class="eyebrow">Workflow</span>
+              <span class="board-pill">Auto planner</span>
+            </div>
+            <h3>Từ keyword đến draft hoàn chỉnh trong một luồng duy nhất</h3>
+            <ul class="board-list">
+              <li>Planner chọn framework theo intent và audience.</li>
+              <li>Research kéo dữ liệu, stats và case study trước khi viết.</li>
+              <li>Writer và Editor khóa lại cấu trúc để bài đọc mượt hơn.</li>
+            </ul>
+          </div>
+          <div class="board-grid">
+            <div class="board-card">
+              <span class="eyebrow">SEO</span>
+              <strong>Meta title + description</strong>
+              <p>Tạo cùng lúc với bài viết để giảm bước hậu kỳ.</p>
+            </div>
+            <div class="board-card">
+              <span class="eyebrow">Calendar</span>
+              <strong>Lên lịch ngay trong plugin</strong>
+              <p>Giữ flow từ viết bài đến scheduled post liền mạch.</p>
+            </div>
+            <div class="board-card board-metric">
+              <span class="metric">2</span>
+              <p>ngôn ngữ vận hành tốt cho site Việt và site quốc tế</p>
+            </div>
+            <div class="board-card board-metric accent">
+              <span class="metric">1</span>
+              <p>bảng điều khiển để quản lý site, key và quota</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -68,109 +93,316 @@ import Footer from '../components/Footer.astro';
 
 <style>
   .hero {
-    padding: 80px 0 100px;
-    text-align: center;
-    background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
+    padding: 52px 0 104px;
+  }
+
+  .hero-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+    gap: 32px;
+    align-items: stretch;
+  }
+
+  .hero-copy,
+  .hero-board {
+    position: relative;
+  }
+
+  .hero-copy {
+    padding: 42px;
+    border: 1px solid rgb(21 33 27 / 0.08);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.82) 0%, rgb(252 248 241 / 0.92) 100%);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+
+  .hero-copy::after {
+    content: '';
+    position: absolute;
+    inset: auto -60px -90px auto;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: rgb(15 118 110 / 0.12);
+    filter: blur(18px);
   }
 
   .hero-badge {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    background: #ede9fe;
-    color: #6d28d9;
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 14px;
-    font-weight: 500;
-    margin-bottom: 24px;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: 1px solid rgb(21 33 27 / 0.1);
+    background: rgb(255 255 255 / 0.7);
+    color: var(--ink-800);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    margin-bottom: 26px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .hero-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 6px rgb(219 122 57 / 0.16);
   }
 
   .hero-title {
-    font-size: 56px;
-    font-weight: 800;
-    color: var(--gray-900);
-    line-height: 1.1;
+    font-size: clamp(3rem, 7vw, 5.6rem);
+    font-weight: 700;
+    color: var(--ink-950);
+    line-height: 0.96;
     margin-bottom: 24px;
-    letter-spacing: -0.02em;
+    max-width: 10ch;
+    position: relative;
+    z-index: 1;
   }
 
-  .gradient-text {
-    background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+  .hero-title span {
+    color: var(--primary);
   }
 
   .hero-desc {
-    font-size: 20px;
-    color: var(--gray-500);
-    max-width: 640px;
-    margin: 0 auto 40px;
+    font-size: 19px;
+    color: var(--ink-700);
+    max-width: 58ch;
+    margin-bottom: 32px;
     line-height: 1.7;
+    position: relative;
+    z-index: 1;
   }
 
   .hero-actions {
     display: flex;
-    gap: 16px;
-    justify-content: center;
-    margin-bottom: 48px;
+    gap: 14px;
+    margin-bottom: 36px;
     flex-wrap: wrap;
+    position: relative;
+    z-index: 1;
+  }
+
+  .hero-btn {
+    padding: 16px 26px;
+    min-width: 180px;
   }
 
   .hero-stats {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 32px;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    position: relative;
+    z-index: 1;
   }
 
   .stat {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    padding: 18px;
+    border-radius: 22px;
+    background: rgb(255 255 255 / 0.72);
+    border: 1px solid rgb(21 33 27 / 0.08);
   }
 
   .stat strong {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--gray-900);
+    display: block;
+    font-size: 22px;
+    font-family: 'Space Grotesk', sans-serif;
+    color: var(--ink-950);
+    margin-bottom: 6px;
   }
 
   .stat span {
+    display: block;
     font-size: 14px;
-    color: var(--gray-400);
+    color: var(--ink-700);
+    line-height: 1.5;
   }
 
-  .stat-divider {
-    width: 1px;
-    height: 40px;
-    background: var(--gray-200);
+  .hero-board {
+    display: grid;
+    gap: 18px;
+    align-content: start;
+  }
+
+  .board-card {
+    background: rgb(255 255 255 / 0.78);
+    border: 1px solid rgb(21 33 27 / 0.08);
+    border-radius: 28px;
+    padding: 24px;
+    box-shadow: var(--shadow);
+  }
+
+  .board-card-main {
+    background: linear-gradient(135deg, rgb(15 118 110 / 0.92) 0%, rgb(21 33 27 / 0.96) 100%);
+    color: #f6f2e8;
+  }
+
+  .board-card-main h3 {
+    font-size: 30px;
+    line-height: 1.08;
+    margin-bottom: 18px;
+  }
+
+  .board-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: inherit;
+    opacity: 0.72;
+  }
+
+  .board-pill {
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.12);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .board-list {
+    list-style: none;
+    display: grid;
+    gap: 12px;
+  }
+
+  .board-list li {
+    padding-left: 18px;
+    position: relative;
+    color: rgb(246 242 232 / 0.86);
+  }
+
+  .board-list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f0c6a6;
+  }
+
+  .board-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+
+  .board-card strong {
+    display: block;
+    font-size: 19px;
+    margin: 8px 0;
+    color: var(--ink-950);
+  }
+
+  .board-card p {
+    color: var(--ink-700);
+    font-size: 15px;
+  }
+
+  .board-metric {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 180px;
+    background: linear-gradient(180deg, #fffdf8 0%, #f0ece2 100%);
+  }
+
+  .board-metric.accent {
+    background: linear-gradient(180deg, #fff8f1 0%, #f6e3d5 100%);
+  }
+
+  .metric {
+    display: block;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 64px;
+    line-height: 1;
+    color: var(--ink-950);
+    margin-bottom: 10px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-copy {
+      animation-delay: 0.08s;
+    }
+
+    .hero-board .board-card:nth-child(1) {
+      animation-delay: 0.14s;
+    }
+
+    .hero-board .board-card:nth-child(2) {
+      animation-delay: 0.22s;
+    }
+
+    .hero-board .board-card:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+
+    .hero-board .board-card:nth-child(4) {
+      animation-delay: 0.38s;
+    }
+
+    .hero-board .board-card:nth-child(5) {
+      animation-delay: 0.46s;
+    }
+
+    .board-metric {
+      animation: soft-float 6.5s ease-in-out infinite;
+    }
+
+    .board-metric.accent {
+      animation-duration: 7.5s;
+    }
   }
 
   @media (max-width: 768px) {
+    .hero {
+      padding-bottom: 72px;
+    }
+
+    .hero-shell {
+      grid-template-columns: 1fr;
+    }
+
+    .hero-copy {
+      padding: 28px;
+    }
+
     .hero-title {
-      font-size: 36px;
+      max-width: 12ch;
     }
-    .hero-desc {
-      font-size: 16px;
-    }
+
     .hero-actions {
       flex-direction: column;
-      align-items: center;
     }
+
     .hero-actions .btn {
       width: 100%;
-      max-width: 300px;
-      justify-content: center;
     }
-    .stat-divider {
-      display: none;
+
+    .hero-stats,
+    .board-grid {
+      grid-template-columns: 1fr;
     }
-    .hero-stats {
-      flex-direction: column;
-      gap: 16px;
+
+    .board-card-main h3 {
+      font-size: 26px;
     }
   }
 </style>

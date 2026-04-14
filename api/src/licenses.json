@@ -5,5 +5,19 @@
     "siteUrl": "http://localhost/wordpress",
     "expires": 1807248022466,
     "activated": 1775712908781
+  },
+  "DEMO-PRO-XXXS3": {
+    "key": "DEMO-PRO-XXXS3",
+    "tier": "pro",
+    "siteUrl": "http://localhost",
+    "expires": 1807548869398,
+    "activated": 1776012886880
+  },
+  "DEMO-PRO-XXXS3S": {
+    "key": "DEMO-PRO-XXXS3S",
+    "tier": "pro",
+    "siteUrl": "http://localhost",
+    "expires": 1807548942223,
+    "activated": 1776013213538
   }
 }

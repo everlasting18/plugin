@@ -1,5 +1,16 @@
 import { Hono } from "hono";
-import { activateLicense, verifyLicense, checkUsage } from "../lib/license.ts";
+import { expectRecord, parseJsonBody } from "../lib/http.ts";
+import {
+  activateAndVerifyLicense,
+  buildMissingLicenseKeyResponse,
+  buildMissingSiteUrlResponse,
+  getLicenseStatus,
+  getUsageSummary,
+  parseLicenseStatusRequest,
+  parseLicenseUsageRequest,
+  parseLicenseVerifyRequest,
+  validateLicense,
+} from "../usecases/license.ts";
 
 const app = new Hono();
 
@@ -8,35 +19,13 @@ const app = new Hono();
  * Verify and optionally activate a license key.
  */
 app.post("/verify", async (c) => {
-  const body = await c.req.json();
-  const { key, site_url } = body;
+  const body = expectRecord(await parseJsonBody(c));
+  const { key, siteUrl } = parseLicenseVerifyRequest(body);
 
-  if (!key || typeof key !== "string" || !key.trim()) {
-    return c.json(
-      {
-        valid: false,
-        tier: "free",
-        expires: null,
-        message: "License key is required.",
-      },
-      400,
-    );
-  }
+  if (!key) return c.json(buildMissingLicenseKeyResponse(), 400);
+  if (!siteUrl) return c.json(buildMissingSiteUrlResponse(), 400);
 
-  if (!site_url || typeof site_url !== "string" || !site_url.trim()) {
-    return c.json(
-      {
-        valid: false,
-        tier: "free",
-        expires: null,
-        message: "Site URL is required.",
-      },
-      400,
-    );
-  }
-
-  // Activate first (saves site_url binding), then verify
-  const result = await activateLicense(key.trim(), site_url.trim());
+  const result = await activateAndVerifyLicense(key, siteUrl);
   return c.json(result);
 });
 
@@ -50,10 +39,10 @@ app.post("/verify", async (c) => {
  * Check usage by domain (for dashboard).
  */
 app.post("/usage", async (c) => {
-  const body = await c.req.json();
-  const { domain } = body;
+  const body = expectRecord(await parseJsonBody(c));
+  const domain = parseLicenseUsageRequest(body);
 
-  if (!domain || typeof domain !== "string" || !domain.trim()) {
+  if (!domain) {
     return c.json(
       {
         error: "Domain is required.",
@@ -62,32 +51,30 @@ app.post("/usage", async (c) => {
     );
   }
 
-  const usage = await checkUsage(domain.trim());
-  return c.json({
-    domain: domain.trim(),
-    count: usage.count,
-    limit: usage.limit,
-    remaining: usage.remaining,
-    allowed: usage.allowed,
-  });
+  return c.json(await getUsageSummary(domain));
 });
-app.post("/check", async (c) => {
-  const body = await c.req.json();
-  const { key, site_url } = body;
+app.post("/status", async (c) => {
+  const body = expectRecord(await parseJsonBody(c));
+  const { domain, key } = parseLicenseStatusRequest(body);
 
-  if (!key || typeof key !== "string" || !key.trim()) {
+  if (!domain) {
     return c.json(
       {
-        valid: false,
-        tier: "free",
-        expires: null,
-        message: "License key is required.",
+        error: "Domain is required.",
       },
       400,
     );
   }
 
-  const result = await verifyLicense(key.trim(), site_url?.trim());
+  return c.json(await getLicenseStatus(domain, key));
+});
+app.post("/check", async (c) => {
+  const body = expectRecord(await parseJsonBody(c));
+  const { key, siteUrl } = parseLicenseVerifyRequest(body);
+
+  if (!key) return c.json(buildMissingLicenseKeyResponse(), 400);
+
+  const result = await validateLicense(key, siteUrl);
   return c.json(result);
 });
 

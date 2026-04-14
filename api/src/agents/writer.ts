@@ -1,12 +1,25 @@
 import { aiComplete } from "../services/openrouter.ts";
 import { writerPrompt, writerMaxTokens } from "../prompts/writer.ts";
-import type { ResearchData } from "./research.ts";
+import { WRITER_SYSTEM_PROMPT } from "../prompts/system.ts";
+import type { ResearchData } from "./types.ts";
 import { logger } from "../lib/logger.ts";
 
 export interface WriterResult {
   content: string;
   title: string;
 }
+
+type WriterResearchInput = Pick<
+  ResearchData,
+  | "stats"
+  | "trends"
+  | "caseStudies"
+  | "commonMistakes"
+  | "uniqueAngles"
+  | "painPoints"
+  | "expertQuotes"
+  | "suggestedOutline"
+>;
 
 /**
  * Clean newline artifacts from Gutenberg HTML output.
@@ -43,7 +56,9 @@ export async function runWriterAgent(
   audience: string,
   framework: string,
   niche: string | undefined,
-  research: ResearchData,
+  research: WriterResearchInput,
+  language: string,
+  strategyHint?: string,
   editorFeedback?: string,
   onChunk?: (text: string) => void,
 ): Promise<WriterResult> {
@@ -69,16 +84,34 @@ export async function runWriterAgent(
     audience,
     framework,
     niche,
+    language,
     research: safeResearch,
+    strategyHint,
     editorFeedback,
   });
 
   const promptTokens = (prompt.length / 4) | 0; // rough estimate
-  logger.info(`writer AI call`, { keyword, tone, length, audience, framework, statsCount: safeResearch.stats.length, caseStudiesCount: safeResearch.caseStudies.length, promptTokensEst: promptTokens, hasFeedback: !!editorFeedback });
+  logger.info(`writer AI call`, {
+    keyword,
+    tone,
+    length,
+    audience,
+    language,
+    framework,
+    statsCount: safeResearch.stats.length,
+    caseStudiesCount: safeResearch.caseStudies.length,
+    promptTokensEst: promptTokens,
+    hasFeedback: !!editorFeedback,
+    hasStrategyHint: !!strategyHint,
+  });
 
   const maxTokens = writerMaxTokens(length);
   const aiStart = Date.now();
-  const rawContent = await aiComplete(prompt, { maxTokens });
+  const rawContent = await aiComplete(prompt, {
+    maxTokens,
+    systemPrompt: WRITER_SYSTEM_PROMPT,
+    temperature: editorFeedback ? 0.45 : 0.65,
+  });
   const aiMs = Date.now() - aiStart;
   const content = cleanHtml(rawContent);
 

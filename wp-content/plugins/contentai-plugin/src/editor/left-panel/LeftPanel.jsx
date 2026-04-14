@@ -4,6 +4,7 @@ const { createPortal } = wp.element;
 import styles from './LeftPanel.module.css';
 import ResultCard from './ResultCard.jsx';
 import { api } from '../../lib/api.js';
+import { normalizeGeneratedBlocks } from '../../lib/blocks.js';
 
 const POST_COUNTS = [
   { value: 1, label: '1 bài', desc: 'Nhanh nhất' },
@@ -11,28 +12,35 @@ const POST_COUNTS = [
 ];
 const AUDIENCES = [
   { value: 'general', label: 'Chung' },
-  { value: 'professional', label: 'Chuyên gia' },
   { value: 'beginner', label: 'Người mới' },
-  { value: 'business', label: 'Doanh nghiệp' },
+  { value: 'professional', label: 'Chuyên gia' },
+];
+const LANGUAGES = [
+  { value: 'vi', label: 'Tiếng Việt' },
+  { value: 'en', label: 'English' },
 ];
 const FRAMEWORKS = [
-  { value: 'none', label: 'Mặc định' },
-  { value: 'aida', label: 'AIDA' },
+  { value: 'auto', label: 'Tự động (khuyên dùng)' },
+  { value: 'adaptive_hybrid', label: 'Adaptive Hybrid (đa dụng)' },
+  { value: 'eeat_skyscraper', label: 'E-E-A-T' },
+  { value: 'howto', label: 'How-to' },
   { value: 'pas', label: 'PAS' },
-  { value: 'hero', label: "Hero's Journey" },
+  { value: 'aida', label: 'AIDA' },
 ];
 
 // ─── License helpers ────────────────────────────────────────────────────────
 
 function getLicenseInfo() {
   if (typeof window === 'undefined' || !window.contentaiData) {
-    return { isPro: false, usedCount: 0, freeLimit: 5 };
+    return { isPro: false, usedCount: 0, freeLimit: 5, usageAvailable: true, usageMessage: '' };
   }
   const d = window.contentaiData;
   return {
     isPro: !!d.isPro,
     usedCount: parseInt(d.usedCount, 10) || 0,
     freeLimit: parseInt(d.freeLimit, 10) || 5,
+    usageAvailable: d.usageAvailable !== false,
+    usageMessage: d.usageMessage || '',
   };
 }
 
@@ -41,6 +49,20 @@ function getUpgradeUrl() {
     ? encodeURIComponent(window.contentaiData.siteUrl)
     : '';
   return `https://contentai.vn/dashboard${siteUrl ? `?domain=${siteUrl}` : ''}`;
+}
+
+async function fetchUsageInfo() {
+  if (typeof window === 'undefined' || !window.contentaiData?.siteUrl) {
+    return null;
+  }
+
+  const usage = await api.getUsage(window.contentaiData.siteUrl);
+  return {
+    usedCount: Number.parseInt(String(usage.count), 10) || 0,
+    freeLimit: Number.parseInt(String(usage.limit), 10) || 5,
+    usageAvailable: true,
+    usageMessage: '',
+  };
 }
 
 // ─── Error display (contextual messages based on error code) ───────────────
@@ -74,7 +96,7 @@ function getErrorDisplay(err) {
   };
 }
 
-export default function LeftPanel({ keyword, onKeywordChange, results, addResult, removeResult }) {
+export default function LeftPanel({ keyword, onKeywordChange, results, addResult }) {
   const containerRef = useRef(null);
   const textareaRef = useRef(null);
   const dropdownRef = useRef(null);
@@ -83,19 +105,47 @@ export default function LeftPanel({ keyword, onKeywordChange, results, addResult
   const [errorType, setErrorType] = useState('error'); // 'error' | 'warning'
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [expandedMenu, setExpandedMenu] = useState(null);
-  const [settings, setSettings] = useState({ count: 1, audience: 'general', framework: 'none', webSearch: true });
+  const [settings, setSettings] = useState({
+    count: 1,
+    audience: 'general',
+    language: 'vi',
+    framework: 'auto',
+    webSearch: true,
+  });
   const [streamLines, setStreamLines] = useState([]);
   const [licenseInfo, setLicenseInfo] = useState(getLicenseInfo);
 
-  // Refresh license info periodically
+  const refreshUsageInfo = useCallback(async () => {
+    if (licenseInfo.isPro) {
+      return true;
+    }
+
+    try {
+      const usage = await fetchUsageInfo();
+      if (!usage) return false;
+      setLicenseInfo(prev => ({ ...prev, ...usage }));
+      return true;
+    } catch (err) {
+      console.warn('[ContentAI] Failed to refresh usage info:', err);
+      setLicenseInfo(prev => ({ ...prev, usageAvailable: false }));
+      return false;
+    }
+  }, [licenseInfo.isPro]);
+
   useEffect(() => {
-    const interval = setInterval(() => setLicenseInfo(getLicenseInfo()), 30000);
+    refreshUsageInfo();
+    if (licenseInfo.isPro) return undefined;
+
+    const interval = setInterval(() => {
+      refreshUsageInfo();
+    }, 30000);
+
     return () => clearInterval(interval);
-  }, []);
+  }, [licenseInfo.isPro, refreshUsageInfo]);
 
   // Proactive check: warn if close to limit (free only)
   const remaining = licenseInfo.freeLimit - licenseInfo.usedCount;
-  const nearLimit = !licenseInfo.isPro && remaining > 0 && remaining <= 2;
+  const nearLimit = licenseInfo.usageAvailable && !licenseInfo.isPro && remaining > 0 && remaining <= 2;
 
   useEffect(() => {
     const tryInject = () => {
@@ -126,10 +176,17 @@ export default function LeftPanel({ keyword, onKeywordChange, results, addResult
     if (!keyword.trim() || loading) return;
 
     // Proactive check for free users near limit
-    if (!licenseInfo.isPro && remaining <= 0) {
+    if (licenseInfo.usageAvailable && !licenseInfo.isPro && remaining <= 0) {
       const errDisplay = getErrorDisplay({ code: 'usage_limit_reached' });
       setError(errDisplay.message);
       setErrorType(errDisplay.type);
+      return;
+    }
+
+    if (licenseInfo.usageAvailable && !licenseInfo.isPro && settings.count > remaining) {
+      const requested = settings.count;
+      setError(`Bạn chỉ còn ${remaining} bài miễn phí trong tháng này nhưng đang yêu cầu ${requested} bài.`);
+      setErrorType('warning');
       return;
     }
 
@@ -137,7 +194,15 @@ export default function LeftPanel({ keyword, onKeywordChange, results, addResult
     setError('');
     setStreamLines([]);
     try {
-      for await (const line of api.generateStream({ keyword, tone: 'professional', count: settings.count, audience: settings.audience, framework: settings.framework, webSearch: settings.webSearch, action: 'full_article' })) {
+      for await (const line of api.generateStream({
+        keyword,
+        count: settings.count,
+        audience: settings.audience,
+        language: settings.language,
+        framework: settings.framework,
+        webSearch: settings.webSearch,
+        action: 'full_article',
+      })) {
         if (line.startsWith('[DONE]')) {
           try {
             const data = JSON.parse(line.slice(6).trim());
@@ -149,8 +214,13 @@ export default function LeftPanel({ keyword, onKeywordChange, results, addResult
             } else if (data.content) {
               addResult({ type: 'full_article', label: 'Bài viết', content: data.content, title: data.title });
             }
-            // Update usage count after successful generation
-            setLicenseInfo(prev => ({ ...prev, usedCount: prev.usedCount + 1 }));
+            const synced = await refreshUsageInfo();
+            if (!synced && !licenseInfo.isPro) {
+              const generatedCount = Array.isArray(data.posts) ? data.posts.length : (data.content ? 1 : 0);
+              if (generatedCount > 0) {
+                setLicenseInfo(prev => ({ ...prev, usedCount: prev.usedCount + generatedCount, usageAvailable: false }));
+              }
+            }
           } catch (e) {
             console.warn('[ContentAI] Failed to parse DONE response:', e);
           }
@@ -163,12 +233,14 @@ export default function LeftPanel({ keyword, onKeywordChange, results, addResult
       setError(errDisplay.message);
       setErrorType(errDisplay.type);
     } finally { setLoading(false); setStreamLines([]); }
-  }, [keyword, settings, loading, addResult, licenseInfo, remaining]);
+  }, [keyword, settings, loading, addResult, licenseInfo.isPro, remaining, refreshUsageInfo]);
 
   const handleKeyDown = useCallback((e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleGenerate(); } }, [handleGenerate]);
 
   const handleInsert = useCallback((result) => {
     const { editPost } = wp.data.dispatch('core/editor');
+    const blockEditorDispatch = wp.data.dispatch('core/block-editor');
+    const blockEditorSelect = wp.data.select('core/block-editor');
 
     // Set title
     if (result.title) {
@@ -176,26 +248,23 @@ export default function LeftPanel({ keyword, onKeywordChange, results, addResult
     }
 
     // Parse HTML content to blocks and insert
-    let contentToInsert = result.content || '';
-    // Remove H1 heading from content (title is set separately)
-    contentToInsert = contentToInsert
-      .replace(/<!-- wp:heading\s*\{[^}]*"level"\s*:\s*1[^}]*\}\s*-->[\s\S]*?<!-- \/wp:heading -->\s*/gi, '')
-      .trim();
+    const contentToInsert = normalizeGeneratedBlocks(result.content, { removeH1: true });
 
     if (contentToInsert) {
       const parsedBlocks = wp.blocks.parse(contentToInsert);
       if (parsedBlocks.length > 0) {
         // Get existing blocks, prepend new blocks
-        const existingBlocks = wp.data.select('core/editor').getBlocks();
+        const existingBlocks = blockEditorSelect.getBlocks();
         const newBlocks = [...parsedBlocks, ...existingBlocks];
-        wp.data.dispatch('core/editor').resetBlocks(newBlocks);
+        blockEditorDispatch.resetBlocks(newBlocks);
       }
     }
   }, []);
 
   const menuItems = [
-    { key: 'count', icon: '📏', label: 'Số bài viết', options: POST_COUNTS, current: settings.count },
+    { key: 'count', icon: '📏', label: 'Số bài', options: POST_COUNTS, current: settings.count },
     { key: 'audience', icon: '👥', label: 'Đối tượng', options: AUDIENCES, current: settings.audience },
+    { key: 'language', icon: '🌍', label: 'Ngôn ngữ', options: LANGUAGES, current: settings.language },
     { key: 'framework', icon: '🧩', label: 'Framework', options: FRAMEWORKS, current: settings.framework },
   ];
 
@@ -210,11 +279,20 @@ export default function LeftPanel({ keyword, onKeywordChange, results, addResult
         {licenseInfo.isPro ? (
           <span className={styles.tierBadgePro}>Pro</span>
         ) : (
-          <span className={styles.tierBadgeFree}>{licenseInfo.usedCount}/{licenseInfo.freeLimit}</span>
+          <span className={styles.tierBadgeFree}>
+            {licenseInfo.usageAvailable ? `${licenseInfo.usedCount}/${licenseInfo.freeLimit}` : `?/${licenseInfo.freeLimit}`}
+          </span>
         )}
       </div>
 
       <div className={styles.body}>
+        {!licenseInfo.isPro && !licenseInfo.usageAvailable && !loading && (
+          <div className={styles.warningBanner}>
+            <span className={styles.warningIcon}>ℹ️</span>
+            <span>{licenseInfo.usageMessage || 'Chưa đọc được quota. Backend sẽ kiểm tra khi gửi.'}</span>
+          </div>
+        )}
+
         {/* ─── Usage warning (near limit) ─── */}
         {nearLimit && !loading && (
           <div className={styles.warningBanner}>
@@ -272,7 +350,7 @@ export default function LeftPanel({ keyword, onKeywordChange, results, addResult
 
         {loading && (
           <div className={styles.streamBox}>
-            {streamLines.length === 0 && <div className={styles.prog}><div className={styles.progBar}/><span>Đang tạo nội dung...</span></div>}
+            {streamLines.length === 0 && <div className={styles.prog}><div className={styles.progBar}/><span>Đang tạo...</span></div>}
             {streamLines.map((l, i) => <div key={i} className={styles.streamLine}>{l.text}</div>)}
           </div>
         )}
@@ -296,7 +374,7 @@ export default function LeftPanel({ keyword, onKeywordChange, results, addResult
         {results.length > 0 && (
           <div className={styles.res}>
             <div className={styles.resLabel}>Kết quả</div>
-            {results.map(r => <ResultCard key={r.id} result={r} onInsert={() => handleInsert(r)} onDiscard={() => removeResult(r.id)} loading={loading}/>)}
+            {results.map(r => <ResultCard key={r.id} result={r} onInsert={() => handleInsert(r)} loading={loading}/>)}
           </div>
         )}
       </div>

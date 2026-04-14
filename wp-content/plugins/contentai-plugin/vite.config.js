@@ -19,7 +19,6 @@ export default defineConfig({
       ],
       input: {
         editor: 'src/editor/index.jsx',
-        admin: 'src/admin/index.jsx',
         calendar: 'src/calendar/index.jsx',
       },
       output: {

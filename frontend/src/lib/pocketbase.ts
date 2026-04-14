@@ -1,31 +1,14 @@
-import PocketBase from 'pocketbase';
+import PocketBase from "pocketbase";
 
-const PB_URL = import.meta.env.PUBLIC_PB_URL || 'https://8qj9xau0f6ama5b.591p.pocketbasecloud.com';
-
-export const pb = new PocketBase(PB_URL);
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  avatar?: string;
-  created: string;
-  licenseKey?: string;
-  licenseTier?: 'free' | 'pro';
-  verified: boolean;
+export function createPocketBaseClient(pbUrl: string): PocketBase {
+  return new PocketBase(pbUrl);
 }
 
-export function getCurrentUser(): User | null {
-  try {
-    if (pb.authStore.isValid) {
-      return pb.authStore.model as unknown as User;
-    }
-  } catch {
-    // ignore
-  }
-  return null;
-}
-
-export function isLoggedIn(): boolean {
-  return pb.authStore.isValid;
+export function syncPocketBaseCookie(pb: PocketBase): void {
+  document.cookie = pb.authStore.exportToCookie({
+    httpOnly: false,
+    sameSite: "Lax",
+    secure: window.location.protocol === "https:",
+    path: "/",
+  });
 }

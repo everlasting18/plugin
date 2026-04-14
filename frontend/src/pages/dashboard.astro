@@ -9,121 +9,127 @@ import Header from '../components/Header.astro';
   <section class="dashboard">
     <div class="container">
       <div class="dashboard-header">
-        <h1>Dashboard</h1>
-        <p>Quản lý tài khoản và license của bạn</p>
+        <div class="dashboard-kicker">Control Center</div>
+        <h1>Quản lý website, quota và license trong một bảng điều khiển gọn.</h1>
+        <p>Chọn website, theo dõi quota miễn phí, gắn key Pro và tải plugin ngay từ cùng một màn hình.</p>
       </div>
 
       <div class="dashboard-grid">
-        <!-- Account Info -->
         <div class="card">
           <h2 class="card-title">Tài khoản</h2>
           <div class="user-info">
             <div class="user-avatar">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" stroke="#0f766e" stroke-width="2" stroke-linecap="round" />
               </svg>
             </div>
             <div>
-              <p style="font-weight: 600; color: var(--gray-900);">Đang tải...</p>
-              <p style="font-size: 14px; color: var(--gray-500);">Đang tải thông tin...</p>
+              <p class="account-label">Tài khoản Google</p>
+              <p class="account-status" id="userStatus">Đang tải thông tin...</p>
             </div>
           </div>
         </div>
 
-        <!-- License Section -->
-        <div class="card">
-          <h2 class="card-title">License & Domain</h2>
-          <p style="font-size: 14px; color: var(--gray-500); margin-bottom: 20px;">
-            Nhập domain WordPress của bạn và license key (nếu có) để kích hoạt plugin.
+        <div class="card card-wide">
+          <div class="card-header-row">
+            <h2 class="card-title card-title-clean">Website của tôi</h2>
+            <span class="badge badge-free" id="tierBadge" style="display: none;">Free</span>
+          </div>
+          <p class="section-note">
+            Mỗi website có trạng thái riêng. Free sẽ theo quota tháng, Pro sẽ theo license key đã kích hoạt.
           </p>
 
-          <form id="licenseForm" class="license-form">
-            <div class="input-group">
-              <label for="domain">Domain WordPress *</label>
+          <div id="domainList" class="domain-list">
+            <div class="loading-state">
+              <svg class="spin" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="#0f766e" stroke-width="2" stroke-linecap="round" />
+              </svg>
+              <span>Đang tải danh sách website...</span>
+            </div>
+          </div>
+
+          <form id="addDomainForm" class="add-domain-form">
+            <div class="input-group" style="flex: 1;">
               <input
                 type="url"
-                id="domain"
-                name="domain"
+                id="newDomain"
+                name="newDomain"
                 class="input"
                 placeholder="https://yoursite.com"
-                required
               />
-              <span class="input-hint">Domain đầy đủ có https://</span>
             </div>
-
-            <div class="input-group">
-              <label for="licenseKey">License Key</label>
+            <div class="input-group" style="width: 220px;">
               <input
                 type="text"
-                id="licenseKey"
-                name="licenseKey"
+                id="newLicenseKey"
+                name="newLicenseKey"
                 class="input"
-                placeholder="CONTENTAI-PRO-XXXXX"
+                placeholder="License Key (tùy chọn)"
               />
-              <span class="input-hint">Để trống nếu dùng gói Free (5 bài/tháng)</span>
             </div>
-
-            <div id="formMessage" class="alert" style="display: none;"></div>
-
-            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;" id="submitBtn">
+            <button type="submit" class="btn btn-primary" id="addDomainBtn">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M5 13l4 4L19 7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 5v14M5 12h14" stroke="white" stroke-width="2" stroke-linecap="round" />
               </svg>
-              Kích hoạt / Cập nhật
+              Thêm website
             </button>
           </form>
 
-          <div class="license-info" id="licenseInfo" style="display: none;">
-            <h3>Thông tin License</h3>
-            <div class="license-stats">
-              <div class="license-stat">
-                <span class="license-stat-label">Trạng thái</span>
-                <span class="badge" id="licenseStatus">--</span>
-              </div>
-              <div class="license-stat">
-                <span class="license-stat-label">Tier</span>
-                <span id="licenseTier">--</span>
-              </div>
-              <div class="license-stat">
-                <span class="license-stat-label">Bài viết tháng này</span>
-                <span id="usageCount">--</span>
-              </div>
+          <div id="formMessage" class="alert" style="display: none; margin-top: 16px;"></div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">Quota website</h2>
+          <div id="usageOverview">
+            <div class="usage-total">
+              <div class="usage-number" id="totalUsageCount">--</div>
+              <div class="usage-label" id="usageLabel">website đang chọn</div>
             </div>
+            <div class="usage-bar">
+              <div class="usage-bar-fill" id="usageBarFill" style="width: 0%"></div>
+            </div>
+            <div class="usage-meta">
+              <span id="usageRemaining">-- / -- còn lại</span>
+              <span id="usageMonth"></span>
+            </div>
+          </div>
+          <div id="upgradePrompt" class="upgrade-prompt" style="display: none;">
+            <p>Đã dùng hết quota miễn phí.</p>
+            <a href="/#pricing" class="btn btn-primary btn-sm">Nâng cấp Pro</a>
           </div>
         </div>
 
-        <!-- Download -->
         <div class="card">
           <h2 class="card-title">Tải Plugin</h2>
-          <p style="font-size: 14px; color: var(--gray-500); margin-bottom: 20px;">
-            Tải plugin ContentAI và cài đặt vào WordPress của bạn.
+          <p class="section-note">
+            Luồng nhanh nhất là tải file zip, cài vào WordPress rồi kết nối domain ngay trong dashboard này.
           </p>
 
           <div class="download-box">
             <div class="download-info-row">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#15211b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
               <div>
-                <p style="font-weight: 600; color: var(--gray-900);">contentai-plugin.zip</p>
-                <p style="font-size: 13px; color: var(--gray-400);">WordPress 6.0+</p>
+                <p class="download-file">contentai-plugin.zip</p>
+                <p class="download-version" id="pluginVersion">WordPress 6.0+</p>
               </div>
             </div>
-            <a href="/api/download" class="btn btn-primary" style="padding: 10px 20px;">
+            <a href="/plugin.zip" class="btn btn-primary" style="padding: 10px 20px;" id="downloadBtn" download>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
               Tải về
             </a>
           </div>
 
-          <div style="margin-top: 16px;">
-            <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">Hướng dẫn cài đặt</h4>
-            <ol style="font-size: 13px; color: var(--gray-500); padding-left: 20px; line-height: 1.8;">
+          <div class="install-guide">
+            <h4>Hướng dẫn cài đặt</h4>
+            <ol>
               <li>Tải plugin về máy</li>
               <li>Vào WordPress → Plugins → Add New → Upload</li>
               <li>Upload file zip và Activate</li>
-              <li>Vào Settings → nhập Domain + License Key</li>
+              <li>Vào Settings → nhập Domain và License Key nếu có</li>
             </ol>
           </div>
         </div>
@@ -132,41 +138,93 @@ import Header from '../components/Header.astro';
   </section>
 </Layout>
 
-<style>
+<script>
+  import { initDashboard } from '../lib/dashboard.ts';
+  import { runtimeConfig } from '../lib/runtime.ts';
+
+  initDashboard(runtimeConfig);
+</script>
+
+<style is:global>
   .dashboard {
-    padding: 48px 0;
+    padding: 42px 0 72px;
     min-height: calc(100vh - 72px);
   }
 
   .dashboard-header {
     margin-bottom: 32px;
+    padding: 36px 38px;
+    border-radius: 36px;
+    background:
+      radial-gradient(circle at right top, rgb(219 122 57 / 0.18), transparent 24%),
+      linear-gradient(135deg, rgb(21 33 27 / 0.96) 0%, rgb(15 118 110 / 0.9) 100%);
+    color: #fff8ef;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .dashboard-kicker {
+    display: inline-flex;
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.12);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
 
   .dashboard-header h1 {
-    font-size: 28px;
-    font-weight: 800;
-    color: var(--gray-900);
-    margin-bottom: 4px;
+    font-size: clamp(2.2rem, 4vw, 3.6rem);
+    font-weight: 700;
+    color: #fff8ef;
+    margin-bottom: 10px;
+    max-width: 14ch;
+    line-height: 0.98;
   }
 
   .dashboard-header p {
-    font-size: 15px;
-    color: var(--gray-500);
+    font-size: 16px;
+    color: rgb(255 248 239 / 0.76);
+    max-width: 56ch;
   }
 
   .dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 24px;
+  }
+
+  .card-wide {
+    grid-column: span 2;
+  }
+
+  .card-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
   }
 
   .card-title {
     font-size: 18px;
     font-weight: 700;
-    color: var(--gray-900);
+    color: var(--ink-950);
     margin-bottom: 16px;
     padding-bottom: 12px;
-    border-bottom: 1px solid var(--gray-200);
+    border-bottom: 1px solid rgb(21 33 27 / 0.08);
+  }
+
+  .card-title-clean {
+    margin-bottom: 0;
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .section-note {
+    font-size: 14px;
+    color: var(--ink-700);
+    margin-bottom: 20px;
   }
 
   .user-info {
@@ -179,26 +237,187 @@ import Header from '../components/Header.astro';
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background: #ede9fe;
+    background: var(--primary-light);
     display: flex;
     align-items: center;
     justify-content: center;
   }
 
-  .license-form {
+  .account-label {
+    font-weight: 700;
+    color: var(--ink-950);
+  }
+
+  .account-status {
+    font-size: 14px;
+    color: var(--ink-700);
+  }
+
+  .domain-list {
+    margin-bottom: 24px;
+  }
+
+  .domain-item {
     display: flex;
-    flex-direction: column;
-    gap: 16px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px;
+    background: rgb(255 255 255 / 0.72);
+    border-radius: 22px;
+    margin-bottom: 12px;
+    border: 1px solid rgb(21 33 27 / 0.08);
+    transition: all 0.2s;
+  }
+
+  .domain-item:hover {
+    border-color: rgb(15 118 110 / 0.18);
+    transform: translateY(-1px);
+  }
+
+  .domain-item.active {
+    border-color: rgb(15 118 110 / 0.2);
+    background: rgb(215 244 239 / 0.34);
+  }
+
+  .domain-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .domain-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    background: rgb(247 242 233 / 0.88);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgb(21 33 27 / 0.08);
+  }
+
+  .domain-details h4 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink-950);
+    margin-bottom: 2px;
+    word-break: break-word;
+  }
+
+  .domain-details span {
+    font-size: 13px;
+    color: var(--ink-700);
+  }
+
+  .domain-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .domain-usage {
+    font-size: 13px;
+    color: var(--ink-700);
+  }
+
+  .delete-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-600);
+    transition: all 0.2s;
+  }
+
+  .delete-btn:hover {
+    background: rgb(220 91 67 / 0.1);
+    color: var(--danger);
+  }
+
+  .add-domain-form {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+  }
+
+  .add-domain-form .input-group {
+    margin-bottom: 0;
+  }
+
+  .usage-total {
+    text-align: left;
+    margin-bottom: 20px;
+  }
+
+  .usage-number {
+    font-size: 56px;
+    font-weight: 700;
+    color: var(--ink-950);
+    line-height: 1;
+  }
+
+  .usage-label {
+    font-size: 14px;
+    color: var(--ink-700);
+    margin-top: 4px;
+  }
+
+  .usage-bar {
+    height: 10px;
+    background: rgb(21 33 27 / 0.08);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+
+  .usage-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), #48a295);
+    border-radius: 999px;
+    transition: width 0.5s ease;
+  }
+
+  .usage-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--ink-700);
+  }
+
+  .upgrade-prompt {
+    margin-top: 20px;
+    padding: 16px;
+    background: var(--accent-soft);
+    border-radius: 18px;
+    text-align: center;
+  }
+
+  .upgrade-prompt p {
+    font-size: 14px;
+    color: #8c4f21;
+    margin-bottom: 12px;
+  }
+
+  .btn-sm {
+    padding: 8px 16px;
+    font-size: 13px;
   }
 
   .download-box {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: var(--gray-50);
-    border-radius: 12px;
-    padding: 16px;
+    background: linear-gradient(135deg, rgb(247 242 233 / 0.82) 0%, rgb(255 255 255 / 0.72) 100%);
+    border-radius: 24px;
+    padding: 18px;
     gap: 16px;
+    border: 1px solid rgb(21 33 27 / 0.08);
   }
 
   .download-info-row {
@@ -207,200 +426,119 @@ import Header from '../components/Header.astro';
     gap: 12px;
   }
 
-  .license-info {
-    margin-top: 24px;
-    padding-top: 20px;
-    border-top: 1px solid var(--gray-200);
+  .download-file {
+    font-weight: 700;
+    color: var(--ink-950);
   }
 
-  .license-info h3 {
+  .download-version {
+    font-size: 13px;
+    color: var(--ink-600);
+  }
+
+  .install-guide {
+    margin-top: 18px;
+  }
+
+  .install-guide h4 {
     font-size: 14px;
-    font-weight: 600;
-    color: var(--gray-700);
-    margin-bottom: 12px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--ink-950);
   }
 
-  .license-stats {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  .install-guide ol {
+    padding-left: 20px;
+    line-height: 1.8;
+    font-size: 13px;
+    color: var(--ink-700);
   }
 
-  .license-stat {
+  .loading-state {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    gap: 10px;
+    padding: 40px;
+    color: var(--ink-700);
     font-size: 14px;
   }
 
-  .license-stat-label {
-    color: var(--gray-500);
+  .empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--ink-600);
   }
 
-  .license-stat span:last-child {
-    font-weight: 600;
-    color: var(--gray-900);
+  .empty-state svg {
+    margin-bottom: 12px;
+    opacity: 0.5;
   }
 
-  @media (max-width: 900px) {
-    .dashboard-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-</style>
-
-<script>
-  const form = document.getElementById('licenseForm') as HTMLFormElement;
-  const formMessage = document.getElementById('formMessage') as HTMLDivElement;
-  const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement;
-  const licenseInfo = document.getElementById('licenseInfo') as HTMLDivElement;
-  const licenseStatus = document.getElementById('licenseStatus') as HTMLSpanElement;
-  const licenseTier = document.getElementById('licenseTier') as HTMLSpanElement;
-  const usageCount = document.getElementById('usageCount') as HTMLSpanElement;
-  const userInfoEl = document.querySelector('.user-info p') as HTMLParagraphElement;
-
-  const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
-  const PB_URL = import.meta.env.PUBLIC_PB_URL || 'https://8qj9xau0f6ama5b.591p.pocketbasecloud.com';
-
-  // Load saved data from localStorage
-  const savedDomain = localStorage.getItem('contentai_domain');
-  const savedKey = localStorage.getItem('contentai_license_key');
-  const savedTier = localStorage.getItem('contentai_tier');
-
-  if (savedDomain) {
-    (document.getElementById('domain') as HTMLInputElement).value = savedDomain;
-  }
-  if (savedKey) {
-    (document.getElementById('licenseKey') as HTMLInputElement).value = savedKey;
-  }
-
-  // Check auth status
-  async function checkAuth() {
-    try {
-      const res = await fetch(`${PB_URL}/api/collections/users/auth-refresh`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.record) {
-          userInfoEl.textContent = data.record.email || 'User';
-          userInfoEl.nextElementSibling!.textContent = 'Đã đăng nhập Google';
-        }
-      }
-    } catch {
-      userInfoEl.textContent = 'Khách';
-      userInfoEl.nextElementSibling!.textContent = 'Chưa đăng nhập';
-    }
-  }
-
-  checkAuth();
-
-  // Check existing license
-  async function checkUsage() {
-    if (!savedDomain) return;
-
-    try {
-      const res = await fetch(`${API_URL}/license/usage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ domain: savedDomain }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        showUsageInfo(data);
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  checkUsage();
-
-  function showUsageInfo(data: any) {
-    licenseInfo.style.display = 'block';
-    licenseStatus.textContent = savedKey ? 'Pro' : 'Free';
-    licenseStatus.className = `badge badge-${savedKey ? 'pro' : 'free'}`;
-    licenseTier.textContent = savedKey ? 'Pro - Unlimited' : 'Free - 5 bài/tháng';
-    usageCount.textContent = `${data.count || 0} / ${data.limit || 5}`;
-  }
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const domain = (document.getElementById('domain') as HTMLInputElement).value.trim();
-    const licenseKey = (document.getElementById('licenseKey') as HTMLInputElement).value.trim();
-
-    if (!domain) {
-      showMessage('Vui lòng nhập domain', 'error');
-      return;
-    }
-
-    // Save to localStorage
-    localStorage.setItem('contentai_domain', domain);
-    localStorage.setItem('contentai_license_key', licenseKey);
-
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" class="spin">
-        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="white" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      Đang xử lý...
-    `;
-
-    try {
-      if (licenseKey) {
-        // Verify + activate license
-        const res = await fetch(`${API_URL}/license/verify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: licenseKey, site_url: domain }),
-        });
-
-        const data = await res.json();
-
-        if (data.valid) {
-          localStorage.setItem('contentai_tier', data.tier);
-          showMessage(`Kích hoạt thành công! License ${data.tier.toUpperCase()}`, 'success');
-          showLicenseInfo({ tier: data.tier, count: 0, limit: data.tier === 'pro' ? '∞' : 5 });
-        } else {
-          localStorage.removeItem('contentai_tier');
-          showMessage(data.message || 'License không hợp lệ', 'error');
-        }
-      } else {
-        // Just save domain for free tier
-        localStorage.setItem('contentai_tier', 'free');
-        showMessage('Đã lưu domain! Bạn đang dùng gói Free (5 bài/tháng)', 'success');
-        showLicenseInfo({ tier: 'free', count: 0, limit: 5 });
-      }
-    } catch (err) {
-      showMessage('Có lỗi xảy ra. Vui lòng thử lại.', 'error');
-    } finally {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = `
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-          <path d="M5 13l4 4L19 7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Kích hoạt / Cập nhật
-      `;
-    }
-  });
-
-  function showMessage(msg: string, type: 'success' | 'error') {
-    formMessage.textContent = msg;
-    formMessage.className = `alert alert-${type}`;
-    formMessage.style.display = 'block';
-    setTimeout(() => { formMessage.style.display = 'none'; }, 5000);
-  }
-</script>
-
-<style>
   .spin {
     animation: spin 1s linear infinite;
   }
+
   @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
+  }
+
+  @media (max-width: 1100px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .card-wide {
+      grid-column: span 2;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .card-wide {
+      grid-column: span 1;
+    }
+
+    .dashboard-header {
+      padding: 28px;
+    }
+
+    .add-domain-form {
+      flex-direction: column;
+    }
+
+    .add-domain-form .input-group {
+      width: 100% !important;
+    }
+
+    .download-box {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .domain-item {
+      align-items: flex-start;
+      gap: 14px;
+      flex-direction: column;
+    }
+
+    .domain-actions {
+      width: 100%;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .usage-number {
+      font-size: 46px;
+    }
+
+    .usage-meta {
+      flex-direction: column;
+      align-items: flex-start;
+    }
   }
 </style>

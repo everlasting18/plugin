@@ -1,8 +1,12 @@
 import { aiComplete, parseJSON } from "../services/openrouter.ts";
 import { editorPrompt, type EditorOutput } from "../prompts/editor.ts";
+import { EDITOR_SYSTEM_PROMPT } from "../prompts/system.ts";
 import { logger } from "../lib/logger.ts";
-
-const MAX_REVISION_LOOPS = 2;
+import type { ResearchSummary, RevisionLoopResult } from "./types.ts";
+import {
+  MAX_EDITOR_REVIEWS,
+  MAX_REWRITE_ATTEMPTS,
+} from "./contentConfig.ts";
 
 /**
  * Editor Agent:
@@ -13,12 +17,9 @@ export async function runEditorAgent(
   keyword: string,
   tone: string,
   audience: string,
+  language: string,
   content: string,
-  research: {
-    stats: string[];
-    caseStudies: string[];
-    painPoints: string[];
-  },
+  research: ResearchSummary,
   onChunk?: (text: string) => void,
   reqId?: string,
 ): Promise<{
@@ -28,10 +29,14 @@ export async function runEditorAgent(
   onChunk?.("[Editor] Đang review content...\n");
   logger.info("editor AI call", { reqId, keyword, contentChars: content.length });
 
-  const prompt = editorPrompt({ keyword, tone, audience, content, research });
+  const prompt = editorPrompt({ keyword, tone, audience, language, content, research });
 
   const aiStart = Date.now();
-  const rawResponse = await aiComplete(prompt, { maxTokens: 1500 });
+  const rawResponse = await aiComplete(prompt, {
+    maxTokens: 1500,
+    systemPrompt: EDITOR_SYSTEM_PROMPT,
+    temperature: 0.2,
+  });
   const aiMs = Date.now() - aiStart;
 
   let review: EditorOutput;
@@ -89,23 +94,25 @@ export async function runRevisionLoop(
   framework: string,
   length: string,
   niche: string | undefined,
-  research: {
-    stats: string[];
-    caseStudies: string[];
-    painPoints: string[];
-  },
+  research: ResearchSummary,
+  language: string,
+  strategyHint: string | undefined,
   onChunk?: (text: string) => void,
   reqId?: string,
-): Promise<{
-  content: string;
-  title: string;
-  loops: number;
-  review: EditorOutput;
-}> {
+): Promise<RevisionLoopResult> {
   let currentContent = initialContent;
   let title = "";
-  let review: EditorOutput;
-  let loops = 0;
+  let review: EditorOutput = {
+    qualityScore: 7,
+    seoScore: 7,
+    engagementScore: 7,
+    overallPass: true,
+    strengths: ["Content đạt yêu cầu."],
+    issues: [],
+    summary: "Không có review.",
+  };
+  let rewriteAttempts = 0;
+  let reviewAttempts = 0;
 
   // Extract initial title
   const h1Match = currentContent.match(/<h1[^>]*>(.*?)<\/h1>/i);
@@ -113,51 +120,122 @@ export async function runRevisionLoop(
     title = h1Match[1].replace(/<[^>]+>/g, "").trim();
   }
 
-  while (loops < MAX_REVISION_LOOPS) {
-    loops++;
-    onChunk?.(`\n[Revision Loop ${loops}/${MAX_REVISION_LOOPS}] Running editor review...\n`);
-    logger.info(`revision loop[${loops}/${MAX_REVISION_LOOPS}]`, { reqId, keyword });
+  // 1) First editorial review
+  reviewAttempts++;
+  onChunk?.(`\n[Revision Loop 1/${MAX_EDITOR_REVIEWS}] Running editor review...\n`);
+  logger.info(`revision review[1/${MAX_EDITOR_REVIEWS}]`, { reqId, keyword });
 
-    const result = await runEditorAgent(keyword, tone, audience, currentContent, research, onChunk, reqId);
-    review = result.review;
+  const firstReview = await runEditorAgent(
+    keyword,
+    tone,
+    audience,
+    language,
+    currentContent,
+    research,
+    onChunk,
+    reqId,
+  );
+  review = firstReview.review;
 
-    if (!result.needsRevision) {
-      onChunk?.("[Revision Loop] Content đã pass editorial review.\n");
-      logger.info("revision loop pass", { reqId, loop: loops, qualityScore: review.qualityScore, seoScore: review.seoScore });
-      break;
-    }
+  if (!firstReview.needsRevision) {
+    onChunk?.("[Revision Loop] Content đã pass editorial review.\n");
+    logger.info("revision loop pass on first review", {
+      reqId,
+      qualityScore: review.qualityScore,
+      seoScore: review.seoScore,
+    });
+    return { content: currentContent, title, loops: rewriteAttempts, review };
+  }
 
-    if (loops >= MAX_REVISION_LOOPS) {
-      onChunk?.("[Revision Loop] Đạt giới hạn revision loops.\n");
-      logger.warn("revision loop max reached", { reqId, loop: loops });
-      break;
-    }
+  if (rewriteAttempts >= MAX_REWRITE_ATTEMPTS) {
+    onChunk?.("[Revision Loop] Đạt giới hạn rewrite attempts.\n");
+    logger.warn("revision write max reached before rewrite", { reqId, keyword });
+    return { content: currentContent, title, loops: rewriteAttempts, review };
+  }
 
-    // Build feedback string từ editor
-    const feedback = buildFeedbackString(review);
-    const feedbackPreview = review.issues.slice(0, 3).map(i => i.issue).join("; ");
+  // 2) Rewrite once with editor feedback
+  rewriteAttempts++;
+  const feedback = buildFeedbackString(review);
+  const feedbackPreview = review.issues.slice(0, 3).map((i) => i.issue).join("; ");
 
-    onChunk?.(`[Revision Loop ${loops}] Đang viết lại theo feedback...\n`);
-    logger.info(`revision write[${loops}]`, { reqId, keyword, feedbackPreview });
+  onChunk?.(
+    `[Revision Loop] Đang viết lại theo feedback (${rewriteAttempts}/${MAX_REWRITE_ATTEMPTS})...\n`,
+  );
+  logger.info(`revision write[${rewriteAttempts}/${MAX_REWRITE_ATTEMPTS}]`, {
+    reqId,
+    keyword,
+    feedbackPreview,
+  });
 
-    // Import dynamically to avoid circular
-    const { runWriterAgent } = await import("./writer.ts");
-    const writerResult = await runWriterAgent(
-      keyword, tone, length, audience, framework, niche,
-      { ...research, webSearchResults: "", suggestedOutline: undefined } as any,
-      feedback,
+  const { runWriterAgent } = await import("./writer.ts");
+  const revisionResearch = {
+    stats: research.stats,
+    trends: [],
+    caseStudies: research.caseStudies,
+    commonMistakes: [],
+    uniqueAngles: [],
+    painPoints: research.painPoints,
+    expertQuotes: [],
+    suggestedOutline: undefined,
+  };
+  const writerResult = await runWriterAgent(
+    keyword,
+    tone,
+    length,
+    audience,
+    framework,
+    niche,
+    revisionResearch,
+    language,
+    strategyHint,
+    feedback,
+    onChunk,
+  );
+
+  logger.info(`revision write done[${rewriteAttempts}]`, {
+    reqId,
+    title: writerResult.title,
+    chars: writerResult.content.length,
+  });
+
+  currentContent = writerResult.content;
+  if (!title && writerResult.title) {
+    title = writerResult.title;
+  }
+
+  // 3) Final editorial review after rewrite
+  if (reviewAttempts < MAX_EDITOR_REVIEWS) {
+    reviewAttempts++;
+    onChunk?.(`\n[Revision Loop 2/${MAX_EDITOR_REVIEWS}] Running editor review...\n`);
+    logger.info(`revision review[2/${MAX_EDITOR_REVIEWS}]`, { reqId, keyword });
+    const secondReview = await runEditorAgent(
+      keyword,
+      tone,
+      audience,
+      language,
+      currentContent,
+      research,
       onChunk,
+      reqId,
     );
+    review = secondReview.review;
 
-    logger.info(`revision write[${loops}] done`, { reqId, title: writerResult.title, chars: writerResult.content.length });
-
-    currentContent = writerResult.content;
-    if (!title && writerResult.title) {
-      title = writerResult.title;
+    if (!secondReview.needsRevision) {
+      onChunk?.("[Revision Loop] Bản viết lại đã pass editorial review.\n");
+      logger.info("revision loop pass after rewrite", { reqId, keyword });
+    } else {
+      onChunk?.(
+        "[Revision Loop] Bản viết lại vẫn còn issue, dừng ở mức tối ưu token hiện tại.\n",
+      );
+      logger.warn("revision loop stopped after final review", {
+        reqId,
+        keyword,
+        issuesCount: review.issues.length,
+      });
     }
   }
 
-  return { content: currentContent, title, loops, review: review! };
+  return { content: currentContent, title, loops: rewriteAttempts, review };
 }
 
 function buildFeedbackString(review: EditorOutput): string {

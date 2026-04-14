@@ -6,6 +6,7 @@ export interface EditorInput {
   keyword: string;
   tone: string;
   audience: string;
+  language?: string;
   content: string;
   research?: {
     stats: string[];
@@ -30,7 +31,8 @@ export interface EditorOutput {
 }
 
 export function editorPrompt(input: EditorInput): string {
-  const { keyword, tone, audience, content, research } = input;
+  const { keyword, language = "vi", content, research } = input;
+  const outputLanguage = language === "en" ? "English" : "Tiếng Việt";
 
   return `
 # ROLE
@@ -40,6 +42,7 @@ Bạn KHÔNG viết lại content — bạn chỉ CHỈ RA vấn đề và HƯ�
 
 # NHIỆM VỤ
 Review bài viết sau và đưa ra feedback cụ thể, khả thi.
+Feedback phải viết bằng ${outputLanguage}.
 
 # CONTENT CẦN REVIEW:
 ${content}

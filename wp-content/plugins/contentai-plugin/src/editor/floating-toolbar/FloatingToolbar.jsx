@@ -17,12 +17,58 @@ export default function FloatingToolbar({ addResult }) {
   const [selectedText, setSelectedText] = useState('');
   const [loading, setLoading] = useState(false);
   const toolbarRef = useRef(null);
+  const selectedRangeRef = useRef(null);
+
+  const replaceSelectedText = useCallback((range, text) => {
+    if (!range || !text) return false;
+
+    const selection = window.getSelection();
+    const rootNode = range.commonAncestorContainer?.nodeType === Node.TEXT_NODE
+      ? range.commonAncestorContainer.parentElement
+      : range.commonAncestorContainer;
+    const editable = rootNode?.closest?.('[contenteditable="true"]');
+
+    if (!selection || !editable) {
+      return false;
+    }
+
+    editable.focus();
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    let replaced = false;
+
+    if (typeof document.execCommand === 'function') {
+      try {
+        replaced = document.execCommand('insertText', false, text);
+      } catch {
+        replaced = false;
+      }
+    }
+
+    if (!replaced) {
+      range.deleteContents();
+      const textNode = document.createTextNode(text);
+      range.insertNode(textNode);
+      range.setStartAfter(textNode);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      replaced = true;
+    }
+
+    editable.dispatchEvent(new Event('input', { bubbles: true }));
+    editable.dispatchEvent(new Event('change', { bubbles: true }));
+
+    return replaced;
+  }, []);
 
   // Listen selection changes trong editor
   useEffect(() => {
     const handleSelection = () => {
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed || !selection.toString().trim()) {
+        selectedRangeRef.current = null;
         // Delay ẩn để user kịp click button
         setTimeout(() => {
           const sel = window.getSelection();
@@ -46,6 +92,7 @@ export default function FloatingToolbar({ addResult }) {
       if (!editorArea.contains(anchorNode)) return;
 
       setSelectedText(text);
+      selectedRangeRef.current = selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null;
 
       // Tính vị trí toolbar
       const range = selection.getRangeAt(0);
@@ -63,21 +110,25 @@ export default function FloatingToolbar({ addResult }) {
 
   const handleRewrite = useCallback(async (instruction) => {
     if (!selectedText || loading) return;
+    const range = selectedRangeRef.current ? selectedRangeRef.current.cloneRange() : null;
     setLoading(true);
     try {
       const data = await api.rewrite({ text: selectedText, instruction });
-      addResult({
-        type: 'rewrite',
-        label: `Rewrite — ${instruction}`,
-        content: data.content,
-      });
+      const applied = replaceSelectedText(range, data.content);
+      if (!applied) {
+        addResult({
+          type: 'rewrite',
+          label: `Rewrite — ${instruction}`,
+          content: data.content,
+        });
+      }
       setVisible(false);
     } catch (err) {
       alert(err.message);
     } finally {
       setLoading(false);
     }
-  }, [selectedText, loading, addResult]);
+  }, [selectedText, loading, addResult, replaceSelectedText]);
 
   if (!visible) return null;
 

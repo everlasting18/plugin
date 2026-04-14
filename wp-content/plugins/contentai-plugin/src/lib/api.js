@@ -1,5 +1,6 @@
 // Use API URL from WordPress (falls back to localhost for dev)
-const API_URL = (window.contentaiData && window.contentaiData.apiUrl) || 'http://localhost:3000/api';
+const API_URL = (typeof window !== 'undefined' && window.contentaiData && window.contentaiData.apiUrl)
+  || 'http://localhost:3000/api';
 
 class APIError extends Error {
   constructor(message, code, status) {
@@ -11,7 +12,7 @@ class APIError extends Error {
 
 function getLicenseHeaders() {
   const headers = {};
-  if (window.contentaiData) {
+  if (typeof window !== 'undefined' && window.contentaiData) {
     if (window.contentaiData.licenseKey) headers['x-license-key'] = window.contentaiData.licenseKey;
     if (window.contentaiData.siteUrl) headers['x-site-url'] = window.contentaiData.siteUrl;
   }
@@ -32,12 +33,18 @@ async function request(endpoint, options = {}) {
     body: method !== 'GET' ? JSON.stringify(options.body ?? {}) : undefined,
   });
 
-  const data = await res.json();
+  const contentType = res.headers.get('content-type') || '';
+  const data = contentType.includes('application/json')
+    ? await res.json()
+    : await res.text();
 
   if (!res.ok) {
+    const message = typeof data === 'string'
+      ? (data.slice(0, 200) || 'Có lỗi xảy ra. Vui lòng thử lại.')
+      : (data.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
     throw new APIError(
-      data.message || 'Có lỗi xảy ra. Vui lòng thử lại.',
-      data.code || 'unknown_error',
+      message,
+      typeof data === 'string' ? 'unknown_error' : (data.code || 'unknown_error'),
       res.status
     );
   }
@@ -45,8 +52,47 @@ async function request(endpoint, options = {}) {
   return data;
 }
 
+function parseStreamErrorPayload(text) {
+  const trimmed = (text || '').trim();
+  if (!trimmed) {
+    return { message: 'Có lỗi xảy ra. Vui lòng thử lại.', code: 'stream_error' };
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    return {
+      message: parsed.message || 'Có lỗi xảy ra. Vui lòng thử lại.',
+      code: parsed.code || 'stream_error',
+    };
+  } catch {
+    return { message: trimmed, code: 'stream_error' };
+  }
+}
+
+async function collectGenerateResult(body, onProgress) {
+  let finalResult = null;
+
+  for await (const line of api.generateStream(body)) {
+    if (line.startsWith('[DONE]')) {
+      finalResult = JSON.parse(line.slice(6).trim());
+      continue;
+    }
+    if (line.startsWith('[ERROR]')) {
+      const message = line.slice(7).trim() || 'Có lỗi xảy ra. Vui lòng thử lại.';
+      throw new APIError(message, 'stream_error', 500);
+    }
+    onProgress?.(line);
+  }
+
+  if (!finalResult) {
+    throw new APIError('Không nhận được kết quả từ server.', 'empty_stream', 502);
+  }
+
+  return finalResult;
+}
+
 export const api = {
-  generate:  (body) => request('generate', { body }),
+  generate:  (body) => collectGenerateResult(body),
   generateStream: async function* (body) {
     const licenseHeaders = getLicenseHeaders();
     const res = await fetch(`${API_URL}/generate`, {
@@ -58,11 +104,9 @@ export const api = {
       body: JSON.stringify(body),
     });
     if (!res.ok) {
-      // Read error as text since the endpoint returns text/plain
       const text = await res.text();
-      let message = 'Có lỗi xảy ra. Vui lòng thử lại.';
-      try { message = JSON.parse(text).message || message; } catch { message = text.slice(0, 200) || message; }
-      throw new APIError(message, 'api_error', res.status);
+      const { message, code } = parseStreamErrorPayload(text);
+      throw new APIError(message, code, res.status);
     }
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -74,11 +118,13 @@ export const api = {
       const lines = buffer.split('\n');
       buffer = lines.pop() ?? '';
       for (const line of lines) {
-        if (line.trim()) yield line;
+        const trimmed = line.trim();
+        if (trimmed) yield trimmed;
       }
     }
     if (buffer.trim()) yield buffer.trim();
   },
+  getUsage:   (domain) => request('license/usage', { body: { domain } }),
   rewrite:   (body) => request('rewrite',  { body }),
-  quick:     (body) => request('generate', { body }),
+  quick:     (body) => collectGenerateResult(body),
 };

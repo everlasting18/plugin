@@ -1,18 +1,19 @@
 ---
 ---
 
-<section id="download" class="section" style="background: white;">
+<section id="download" class="section">
   <div class="container">
-    <h2 class="section-title">Bắt đầu sử dụng ngay</h2>
+    <div class="section-kicker">Download</div>
+    <h2 class="section-title">Tải plugin, cài trong vài phút và viết ngay trong Gutenberg.</h2>
     <p class="section-desc">
-      Tải plugin, cài đặt vào WordPress và bắt đầu viết bài trong vài phút.
+      Không cần dashboard phức tạp. Chỉ cần đăng nhập, tải file zip, gắn website và bắt đầu chạy quota free hoặc key Pro.
     </p>
 
     <div class="download-card">
       <div class="download-info">
         <div class="download-icon">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#15211b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </div>
         <div>
@@ -20,48 +21,48 @@
           <p>Phiên bản mới nhất · WordPress 6.0+ · PHP 7.4+</p>
           <div class="download-meta">
             <span class="badge badge-free">Miễn phí để bắt đầu</span>
-            <span style="font-size: 13px; color: var(--gray-400);">·</span>
-            <span style="font-size: 13px; color: var(--gray-500);">5 phút cài đặt</span>
+            <span class="download-sep">·</span>
+            <span class="download-copy">5 phút cài đặt</span>
           </div>
         </div>
       </div>
-      <a href="/login" class="btn btn-primary" style="padding: 14px 28px;">
+      <a href="/plugin.zip" class="btn btn-primary" style="padding: 14px 28px;" download>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
         Tải plugin miễn phí
       </a>
     </div>
 
     <div class="install-steps">
-      <h3 style="font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 32px;">Hướng dẫn cài đặt</h3>
+      <h3>Hướng dẫn cài đặt</h3>
       <div class="steps">
         <div class="step">
           <div class="step-number">1</div>
           <div class="step-content">
             <h4>Tải plugin</h4>
-            <p>Đăng nhập Google và tải file plugin về máy</p>
+            <p>Đăng nhập Google và tải file plugin về máy.</p>
           </div>
         </div>
         <div class="step">
           <div class="step-number">2</div>
           <div class="step-content">
             <h4>Upload lên WordPress</h4>
-            <p>Vào Plugins → Add New → Upload Plugin → chọn file zip</p>
+            <p>Vào Plugins → Add New → Upload Plugin rồi chọn file zip.</p>
           </div>
         </div>
         <div class="step">
           <div class="step-number">3</div>
           <div class="step-content">
             <h4>Kích hoạt</h4>
-            <p>Activate plugin và nhập license key từ tài khoản của bạn</p>
+            <p>Activate plugin và nhập domain hoặc license key từ tài khoản của bạn.</p>
           </div>
         </div>
         <div class="step">
           <div class="step-number">4</div>
           <div class="step-content">
             <h4>Bắt đầu viết</h4>
-            <p>Mở bất kỳ bài viết nào, plugin sẽ xuất hiện trong Gutenberg</p>
+            <p>Mở bài viết bất kỳ, panel ContentAI sẽ xuất hiện trong Gutenberg.</p>
           </div>
         </div>
       </div>
@@ -70,47 +71,68 @@
 </section>
 
 <style>
+  .section-kicker {
+    display: inline-flex;
+    margin: 0 auto 18px;
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: 1px solid rgb(21 33 27 / 0.08);
+    background: rgb(255 255 255 / 0.64);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-700);
+  }
+
+  #download .container {
+    text-align: center;
+  }
+
   .download-card {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
-    border: 1px solid #c4b5fd;
-    border-radius: var(--radius);
-    padding: 32px;
-    max-width: 800px;
+    background: linear-gradient(135deg, rgb(21 33 27 / 0.96) 0%, rgb(15 118 110 / 0.92) 100%);
+    color: #fff8ef;
+    border: 1px solid rgb(21 33 27 / 0.08);
+    border-radius: 32px;
+    padding: 36px;
+    max-width: 860px;
     margin: 0 auto 64px;
     gap: 24px;
     flex-wrap: wrap;
+    box-shadow: var(--shadow-lg);
   }
 
   .download-info {
     display: flex;
     align-items: center;
     gap: 16px;
+    text-align: left;
   }
 
   .download-icon {
     width: 64px;
     height: 64px;
-    background: white;
-    border-radius: 16px;
+    background: rgb(255 255 255 / 0.88);
+    border-radius: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: var(--shadow);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8);
   }
 
   .download-info h3 {
     font-size: 20px;
     font-weight: 700;
-    color: var(--gray-900);
+    color: #fff8ef;
     margin-bottom: 4px;
   }
 
   .download-info p {
     font-size: 14px;
-    color: var(--gray-500);
+    color: rgb(255 248 239 / 0.72);
     margin-bottom: 8px;
   }
 
@@ -120,51 +142,72 @@
     gap: 8px;
   }
 
+  .download-sep,
+  .download-copy {
+    font-size: 13px;
+    color: rgb(255 248 239 / 0.68);
+  }
+
   .install-steps {
-    max-width: 700px;
+    max-width: 760px;
     margin: 0 auto;
   }
 
+  .install-steps h3 {
+    font-size: 24px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
   .steps {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
   }
 
   .step {
     display: flex;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 16px;
-    padding: 16px;
-    background: white;
-    border-radius: 12px;
-    border: 1px solid var(--gray-200);
+    padding: 22px;
+    background: rgb(255 255 255 / 0.74);
+    border-radius: 24px;
+    border: 1px solid rgb(21 33 27 / 0.08);
+    box-shadow: var(--shadow);
+    text-align: left;
   }
 
   .step-number {
-    width: 32px;
-    height: 32px;
-    background: var(--primary);
-    color: white;
-    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    background: var(--accent-soft);
+    color: #8c4f21;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 14px;
+    font-size: 16px;
     flex-shrink: 0;
   }
 
   .step-content h4 {
     font-size: 16px;
     font-weight: 600;
-    color: var(--gray-900);
+    color: var(--ink-950);
     margin-bottom: 4px;
   }
 
   .step-content p {
     font-size: 14px;
-    color: var(--gray-500);
+    color: var(--ink-700);
+  }
+
+  @media (max-width: 720px) {
+    .steps {
+      grid-template-columns: 1fr;
+    }
   }
 
   @media (max-width: 600px) {
@@ -172,8 +215,10 @@
       flex-direction: column;
       text-align: center;
     }
+
     .download-info {
       flex-direction: column;
+      text-align: center;
     }
   }
 </style>

@@ -7,22 +7,22 @@
       <div class="footer-brand">
         <a href="/" class="nav-logo" style="margin-bottom: 12px; display: inline-flex;">
           <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-            <rect width="28" height="28" rx="8" fill="#6366f1"/>
-            <path d="M8 10h12M8 14h8M8 18h10" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            <rect width="28" height="28" rx="8" fill="#FFF8EF" />
+            <path d="M8 10h12M8 14h8M8 18h10" stroke="#15211B" stroke-width="2" stroke-linecap="round" />
           </svg>
           ContentAI
         </a>
-        <p style="font-size: 14px; color: var(--gray-500); max-width: 280px; line-height: 1.6;">
-          Công cụ viết bài AI cho WordPress. Giúp bạn tạo nội dung SEO chuyên nghiệp nhanh chóng.
+        <p class="footer-copy">
+          Hệ thống editorial AI cho WordPress: research, viết bài, meta và lịch đăng trong một flow gọn.
         </p>
       </div>
 
       <div class="footer-links">
         <h4>Sản phẩm</h4>
         <ul>
-          <li><a href="#features">Tính năng</a></li>
-          <li><a href="#pricing">Bảng giá</a></li>
-          <li><a href="#download">Tải về</a></li>
+          <li><a href="/#features">Tính năng</a></li>
+          <li><a href="/#pricing">Bảng giá</a></li>
+          <li><a href="/#download">Tải về</a></li>
         </ul>
       </div>
 
@@ -45,16 +45,18 @@
     </div>
 
     <div class="footer-bottom">
-      <p>&copy; 2025 ContentAI. Tất cả quyền được bảo lưu.</p>
+      <p>&copy; 2026 ContentAI. Tất cả quyền được bảo lưu.</p>
     </div>
   </div>
 </footer>
 
 <style>
   .footer {
-    background: var(--gray-900);
-    color: var(--gray-400);
-    padding: 64px 0 32px;
+    background:
+      radial-gradient(circle at top right, rgb(219 122 57 / 0.16), transparent 24%),
+      linear-gradient(180deg, #17211d 0%, #0f1714 100%);
+    color: rgb(255 248 239 / 0.68);
+    padding: 72px 0 32px;
   }
 
   .footer-grid {
@@ -65,13 +67,20 @@
   }
 
   .footer-brand .nav-logo {
-    color: white;
+    color: #fff8ef;
+  }
+
+  .footer-copy {
+    font-size: 14px;
+    color: rgb(255 248 239 / 0.68);
+    max-width: 320px;
+    line-height: 1.7;
   }
 
   .footer-links h4 {
     font-size: 14px;
     font-weight: 600;
-    color: white;
+    color: #fff8ef;
     margin-bottom: 16px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -86,17 +95,17 @@
 
   .footer-links a {
     font-size: 14px;
-    color: var(--gray-400);
+    color: rgb(255 248 239 / 0.68);
     transition: color 0.2s;
   }
 
   .footer-links a:hover {
-    color: white;
+    color: #fff8ef;
     text-decoration: none;
   }
 
   .footer-bottom {
-    border-top: 1px solid var(--gray-700);
+    border-top: 1px solid rgb(255 248 239 / 0.12);
     padding-top: 24px;
     font-size: 14px;
   }

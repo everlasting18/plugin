@@ -1,10 +1,20 @@
 import { useState } from 'react';
 import styles from './ScheduleModal.module.css';
 
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
 const MINUTES = [0, 15, 30, 45];
+const MERIDIEMS = ['AM', 'PM'];
 
 function pad(n) { return String(n).padStart(2, '0'); }
+
+function to24Hour(hour12, meridiem) {
+  if (meridiem === 'AM') return hour12 === 12 ? 0 : hour12;
+  return hour12 === 12 ? 12 : hour12 + 12;
+}
+
+function formatTime(hour12, minute, meridiem) {
+  return `${pad(hour12)}:${pad(minute)} ${meridiem}`;
+}
 
 function formatDateVi(date) {
   const days = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
@@ -14,10 +24,11 @@ function formatDateVi(date) {
 export default function ScheduleModal({ postTitle, targetDate, onConfirm, onCancel }) {
   const [hour, setHour] = useState(9);
   const [minute, setMinute] = useState(0);
+  const [meridiem, setMeridiem] = useState('AM');
 
   const handleConfirm = () => {
     const scheduled = new Date(targetDate);
-    scheduled.setHours(hour, minute, 0, 0);
+    scheduled.setHours(to24Hour(hour, meridiem), minute, 0, 0);
     onConfirm(scheduled);
   };
 
@@ -65,22 +76,31 @@ export default function ScheduleModal({ postTitle, targetDate, onConfirm, onCanc
                 <option key={m} value={m}>{pad(m)}</option>
               ))}
             </select>
+            <select
+              className={styles.timeSelect}
+              value={meridiem}
+              onChange={(e) => setMeridiem(e.target.value)}
+            >
+              {MERIDIEMS.map((value) => (
+                <option key={value} value={value}>{value}</option>
+              ))}
+            </select>
           </div>
         </div>
 
         <div className={styles.presets}>
           <span className={styles.presetsLabel}>Gợi ý:</span>
           {[
-            { label: '6:00', h: 6, m: 0 },
-            { label: '9:00', h: 9, m: 0 },
-            { label: '12:00', h: 12, m: 0 },
-            { label: '18:00', h: 18, m: 0 },
-            { label: '20:00', h: 20, m: 0 },
+            { label: '06:00 AM', h: 6, m: 0, meridiem: 'AM' },
+            { label: '09:00 AM', h: 9, m: 0, meridiem: 'AM' },
+            { label: '12:00 PM', h: 12, m: 0, meridiem: 'PM' },
+            { label: '06:00 PM', h: 6, m: 0, meridiem: 'PM' },
+            { label: '08:00 PM', h: 8, m: 0, meridiem: 'PM' },
           ].map((p) => (
             <button
               key={p.label}
-              className={`${styles.presetBtn} ${hour === p.h && minute === p.m ? styles.presetBtnActive : ''}`}
-              onClick={() => { setHour(p.h); setMinute(p.m); }}
+              className={`${styles.presetBtn} ${hour === p.h && minute === p.m && meridiem === p.meridiem ? styles.presetBtnActive : ''}`}
+              onClick={() => { setHour(p.h); setMinute(p.m); setMeridiem(p.meridiem); }}
             >
               {p.label}
             </button>
@@ -93,7 +113,7 @@ export default function ScheduleModal({ postTitle, targetDate, onConfirm, onCanc
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
             </svg>
-            Lên lịch lúc {pad(hour)}:{pad(minute)}
+            Lên lịch lúc {formatTime(hour, minute, meridiem)}
           </button>
         </div>
       </div>

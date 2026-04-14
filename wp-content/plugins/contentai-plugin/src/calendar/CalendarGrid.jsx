@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import styles from './CalendarGrid.module.css';
 import PostCard from './PostCard.jsx';
+import { parseWpDate } from './date.js';
 
 const DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 const MONTHS = [
@@ -41,6 +42,14 @@ function isSameDay(d1, d2) {
   return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
 }
 
+function hasCategory(categories, filterCategory) {
+  const targetId = Number(filterCategory);
+  return (categories || []).some((cat) => {
+    const categoryId = Number(cat?.id ?? cat?.term_id ?? cat);
+    return Number.isFinite(categoryId) && categoryId === targetId;
+  });
+}
+
 export default function CalendarGrid({
   currentDate, posts, view, categories,
   filterStatus, filterCategory,
@@ -57,7 +66,7 @@ export default function CalendarGrid({
   const filtered = posts.filter((p) => {
     if (filterStatus !== 'all' && p.status !== filterStatus) return false;
     if (filterCategory && filterCategory !== 'all') {
-      if (!p.categories?.includes(Number(filterCategory))) return false;
+      if (!hasCategory(p.categories, filterCategory)) return false;
     }
     return true;
   });
@@ -71,7 +80,7 @@ export default function CalendarGrid({
     const actualYear = mon < 0 ? year - 1 : mon > 11 ? year + 1 : year;
     const actualMonth = ((mon % 12) + 12) % 12;
     return filtered.filter((p) => {
-      const pd = new Date(p.date);
+      const pd = parseWpDate(p.date);
       return pd.getFullYear() === actualYear && pd.getMonth() === actualMonth && pd.getDate() === day;
     });
   };
@@ -89,11 +98,9 @@ export default function CalendarGrid({
     setDragOverCell(null);
     try {
       const data = JSON.parse(e.dataTransfer.getData('application/json'));
-      console.log('[CalendarGrid] drop data:', data);
       const actualYear = mon < 0 ? year - 1 : mon > 11 ? year + 1 : year;
       const actualMonth = ((mon % 12) + 12) % 12;
       const targetDate = new Date(actualYear, actualMonth, day);
-      console.log('[CalendarGrid] calling onDropPost', data.id, targetDate);
       onDropPost?.(data.id, targetDate);
     } catch (err) { console.error('[CalendarGrid] drop error:', err); }
   };
@@ -111,12 +118,14 @@ export default function CalendarGrid({
         <div className={styles.listView}>
           {filtered.length === 0 && <div className={styles.emptyList}>Chưa có bài nào được lên lịch tháng này.</div>}
           {filtered
-            .sort((a, b) => new Date(a.date) - new Date(b.date))
-            .map((p) => (
+            .sort((a, b) => parseWpDate(a.date) - parseWpDate(b.date))
+            .map((p) => {
+              const postDate = parseWpDate(p.date);
+              return (
               <div key={p.id} className={styles.listItem}>
-                <span className={styles.listDate}>{new Date(p.date).toLocaleDateString('vi-VN')}</span>
+                <span className={styles.listDate}>{postDate.toLocaleDateString('vi-VN')}</span>
                 <span className={styles.listTime}>
-                  {new Date(p.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                  {postDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                 </span>
                 <span className={styles.listStatus} data-status={p.status}>{p.status === 'publish' ? 'Đã đăng' : 'Lên lịch'}</span>
                 <span className={styles.listTitle}>{p.title?.rendered || p.title}</span>
@@ -124,7 +133,8 @@ export default function CalendarGrid({
                   {p._categoryNames?.join(', ') || ''}
                 </span>
               </div>
-            ))}
+              );
+            })}
         </div>
       </div>
     );
@@ -194,13 +204,13 @@ function Header({
         </div>
         <span className={styles.count}>{scheduledCount} bài đã lên lịch</span>
         <div className={styles.viewToggle}>
-          {['month', 'week', 'list'].map((v) => (
+          {['month', 'list'].map((v) => (
             <button
               key={v}
               className={`${styles.viewBtn} ${view === v ? styles.viewBtnActive : ''}`}
               onClick={() => onChangeView(v)}
             >
-              {v === 'month' ? 'Tháng' : v === 'week' ? 'Tuần' : 'Danh sách'}
+              {v === 'month' ? 'Tháng' : 'Danh sách'}
             </button>
           ))}
         </div>

@@ -61,8 +61,6 @@ function patchConsole() {
   console.error = (...args: unknown[]) => { originalError(...args); capture("ERROR")(...args); };
 }
 
-// Patch logger to also store
-const origLogger = logger;
 export const logStore = {
   get(reqId: string): LogEntry[] {
     return store.get(reqId) || [];

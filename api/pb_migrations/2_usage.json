@@ -3,21 +3,23 @@
         "id": "usage001",
         "listRule": "",
         "viewRule": "",
-        "createRule": "@request.auth.id != \"\"",
-        "updateRule": "@request.auth.id != \"\"",
-        "deleteRule": "@request.auth.id != \"\"",
+        "createRule": "",
+        "updateRule": "",
+        "deleteRule": "",
         "name": "usage",
         "type": "base",
         "fields": [
             {
                 "autogeneratePattern": "",
                 "hidden": false,
-                "id": "url_site_url",
-                "name": "site_url",
+                "id": "text_domain_id",
+                "max": 0,
+                "min": 0,
+                "name": "domain_id",
                 "presentable": false,
                 "required": true,
                 "system": false,
-                "type": "url"
+                "type": "text"
             },
             {
                 "autogeneratePattern": "",
@@ -37,7 +39,6 @@
                 "cost": 0,
                 "hidden": false,
                 "id": "number_count",
-                "max": 0,
                 "min": 0,
                 "name": "count",
                 "pattern": "",
@@ -68,7 +69,7 @@
             }
         ],
         "indexes": [
-            "CREATE UNIQUE INDEX idx_site_url_month ON usage (site_url, month)"
+            "CREATE UNIQUE INDEX idx_domain_id_month ON usage (domain_id, month)"
         ],
         "system": false,
         "mfa": {

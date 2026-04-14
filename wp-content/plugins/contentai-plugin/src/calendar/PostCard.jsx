@@ -1,4 +1,5 @@
 import styles from './PostCard.module.css';
+import { parseWpDate } from './date.js';
 
 function getSeoScore(post) {
   const title = post.title?.rendered || post.title || '';
@@ -15,7 +16,7 @@ function getSeoScore(post) {
 }
 
 function formatDate(dateStr) {
-  const d = new Date(dateStr);
+  const d = parseWpDate(dateStr);
   return `${d.getDate()}/${d.getMonth() + 1}`;
 }
 

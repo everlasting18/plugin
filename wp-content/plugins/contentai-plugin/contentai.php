@@ -24,6 +24,126 @@ define('CONTENTAI_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('CONTENTAI_API_URL', contentai_get_api_url());
 define('CONTENTAI_FREE_LIMIT', 5);
 
+function contentai_user_can_edit_posts() {
+    return current_user_can('edit_posts');
+}
+
+function contentai_parse_query_boundary($value, $timezone = null) {
+    $value = trim((string) $value);
+    if ($value === '') {
+        return null;
+    }
+
+    if ($timezone instanceof DateTimeZone) {
+        try {
+            $date = new DateTime($value, $timezone);
+            $date->setTimezone(new DateTimeZone('UTC'));
+            return $date->format('Y-m-d H:i:s');
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+
+    $timestamp = strtotime($value);
+    if ($timestamp === false) {
+        return null;
+    }
+
+    return gmdate('Y-m-d H:i:s', $timestamp);
+}
+
+function contentai_build_posts_query_args($status, $after = '', $before = '', $after_local = '', $before_local = '') {
+    $allowed_statuses = ['draft', 'publish', 'future'];
+    $statuses = array_values(array_intersect(
+        array_filter(array_map('sanitize_key', array_map('trim', explode(',', (string) $status)))),
+        $allowed_statuses
+    ));
+
+    if (empty($statuses)) {
+        $statuses = ['draft'];
+    }
+
+    $args = [
+        'post_type'      => 'post',
+        'post_status'    => count($statuses) === 1 ? $statuses[0] : $statuses,
+        'posts_per_page' => 100,
+        'orderby'        => 'date',
+        'order'          => 'desc',
+    ];
+
+    $date_query = ['inclusive' => true, 'column' => 'post_date_gmt'];
+    $after_gmt = contentai_parse_query_boundary($after_local, wp_timezone()) ?? contentai_parse_query_boundary($after);
+    $before_gmt = contentai_parse_query_boundary($before_local, wp_timezone()) ?? contentai_parse_query_boundary($before);
+
+    if ($after_gmt !== null) {
+        $date_query['after'] = $after_gmt;
+    }
+    if ($before_gmt !== null) {
+        $date_query['before'] = $before_gmt;
+    }
+    if (isset($date_query['after']) || isset($date_query['before'])) {
+        $args['date_query'] = [$date_query];
+    }
+
+    return $args;
+}
+
+function contentai_get_usage_info($site_url = '') {
+    $domain = $site_url ?: home_url();
+    $response = wp_remote_post(CONTENTAI_API_URL . '/license/usage', [
+        'body'    => json_encode(['domain' => $domain]),
+        'headers' => ['Content-Type' => 'application/json'],
+        'timeout' => 15,
+    ]);
+
+    if (is_wp_error($response)) {
+        return [
+            'count'     => 0,
+            'limit'     => CONTENTAI_FREE_LIMIT,
+            'remaining' => CONTENTAI_FREE_LIMIT,
+            'allowed'   => true,
+            'available' => false,
+            'message'   => $response->get_error_message(),
+        ];
+    }
+
+    $status_code = (int) wp_remote_retrieve_response_code($response);
+    $body = json_decode(wp_remote_retrieve_body($response), true);
+
+    if ($status_code < 200 || $status_code >= 300) {
+        return [
+            'count'     => 0,
+            'limit'     => CONTENTAI_FREE_LIMIT,
+            'remaining' => CONTENTAI_FREE_LIMIT,
+            'allowed'   => true,
+            'available' => false,
+            'message'   => is_array($body)
+                ? (string) ($body['message'] ?? 'Không đọc được quota từ API.')
+                : 'Không đọc được quota từ API.',
+        ];
+    }
+
+    if (!is_array($body)) {
+        return [
+            'count'     => 0,
+            'limit'     => CONTENTAI_FREE_LIMIT,
+            'remaining' => CONTENTAI_FREE_LIMIT,
+            'allowed'   => true,
+            'available' => false,
+            'message'   => 'Usage response không hợp lệ.',
+        ];
+    }
+
+    return [
+        'count'     => (int) ($body['count'] ?? 0),
+        'limit'     => (int) ($body['limit'] ?? CONTENTAI_FREE_LIMIT),
+        'remaining' => (int) ($body['remaining'] ?? CONTENTAI_FREE_LIMIT),
+        'allowed'   => (bool) ($body['allowed'] ?? true),
+        'available' => true,
+        'message'   => '',
+    ];
+}
+
 // ============================================================
 // LICENSE FUNCTIONS
 // ============================================================
@@ -97,6 +217,41 @@ function contentai_increment_usage($user_id) {
     update_option($option_key, (int) get_option($option_key, 0) + 1);
 }
 
+function contentai_prepare_schedule_dates($date_gmt) {
+    try {
+        $date_utc = new DateTime($date_gmt, new DateTimeZone('UTC'));
+        $date_local = clone $date_utc;
+        $date_local->setTimezone(wp_timezone());
+    } catch (Exception $e) {
+        return new WP_Error('rest_invalid_date', 'Định dạng ngày không hợp lệ.', ['status' => 400]);
+    }
+
+    return [
+        'post_date' => $date_local->format('Y-m-d H:i:s'),
+        'post_date_gmt' => $date_utc->format('Y-m-d H:i:s'),
+    ];
+}
+
+function contentai_prepare_schedule_dates_from_local($date_local) {
+    $date_local = trim((string) $date_local);
+    if ($date_local === '') {
+        return new WP_Error('rest_invalid_date', 'Định dạng ngày không hợp lệ.', ['status' => 400]);
+    }
+
+    try {
+        $local = new DateTime($date_local, wp_timezone());
+        $utc = clone $local;
+        $utc->setTimezone(new DateTimeZone('UTC'));
+    } catch (Exception $e) {
+        return new WP_Error('rest_invalid_date', 'Định dạng ngày không hợp lệ.', ['status' => 400]);
+    }
+
+    return [
+        'post_date' => $local->format('Y-m-d H:i:s'),
+        'post_date_gmt' => $utc->format('Y-m-d H:i:s'),
+    ];
+}
+
 function contentai_generate_jwt($user_id) {
     $secret = defined('CONTENTAI_JWT_SECRET') ? CONTENTAI_JWT_SECRET : 'change-this-secret';
     $payload = [
@@ -115,11 +270,13 @@ function contentai_generate_jwt($user_id) {
 // ============================================================
 
 add_action('rest_api_init', function () {
-    // Helper: verify nonce auth
     $authenticate = function ($request) {
         $user_id = get_current_user_id();
         if ($user_id === 0) {
             return new WP_Error('rest_not_logged_in', 'Bạn cần đăng nhập.', ['status' => 401]);
+        }
+        if (!contentai_user_can_edit_posts()) {
+            return new WP_Error('rest_forbidden', 'Bạn không có quyền dùng ContentAI.', ['status' => 403]);
         }
         return $user_id;
     };
@@ -148,21 +305,13 @@ add_action('rest_api_init', function () {
             $user_id = $authenticate($request);
             if (is_wp_error($user_id)) return $user_id;
 
-            $status = $request->get_param('status') ?: 'draft';
-            $after  = $request->get_param('after');
-            $before = $request->get_param('before');
+            $status       = $request->get_param('status') ?: 'draft';
+            $after        = $request->get_param('after');
+            $before       = $request->get_param('before');
+            $after_local  = $request->get_param('after_local');
+            $before_local = $request->get_param('before_local');
 
-            $args = [
-                'post_type'      => 'post',
-                'post_status'    => $status,
-                'posts_per_page' => 100,
-                'orderby'        => 'date',
-                'order'          => 'desc',
-            ];
-            if ($after)  $args['date_after']  = $after;
-            if ($before) $args['date_before'] = $before;
-
-            $posts = get_posts($args);
+            $posts = get_posts(contentai_build_posts_query_args($status, $after, $before, $after_local, $before_local));
             return array_values(array_map(fn($p) => [
                 'id'           => $p->ID,
                 'title'        => get_the_title($p),
@@ -175,7 +324,7 @@ add_action('rest_api_init', function () {
                 'thumbnail'    => get_the_post_thumbnail_url($p, 'thumbnail'),
             ], $posts));
         },
-        'permission_callback' => '__return_true',
+        'permission_callback' => 'contentai_user_can_edit_posts',
     ]);
 
     // POST /wp-json/contentai/v1/posts — Tạo draft mới
@@ -205,7 +354,7 @@ add_action('rest_api_init', function () {
 
             return ['id' => $post_id, 'link' => get_permalink($post_id)];
         },
-        'permission_callback' => '__return_true',
+        'permission_callback' => 'contentai_user_can_edit_posts',
     ]);
 
     // POST /wp-json/contentai/v1/schedule — Lên lịch bài viết
@@ -215,40 +364,48 @@ add_action('rest_api_init', function () {
             $user_id = $authenticate($request);
             if (is_wp_error($user_id)) return $user_id;
 
-            $post_id   = (int) $request->get_param('post_id');
-            $date_gmt  = sanitize_text_field($request->get_param('date_gmt'));
+            $post_id    = (int) $request->get_param('post_id');
+            $date_gmt   = sanitize_text_field($request->get_param('date_gmt'));
+            $date_local = sanitize_text_field($request->get_param('date_local'));
 
             if (!$post_id || !get_post($post_id)) {
                 return new WP_Error('rest_invalid_post', 'Bài viết không tồn tại.', ['status' => 404]);
             }
+            if (!current_user_can('edit_post', $post_id)) {
+                return new WP_Error('rest_forbidden', 'Bạn không có quyền lên lịch bài viết này.', ['status' => 403]);
+            }
 
-            // Parse date và set post sang future
-            $date = date_create($date_gmt, new DateTimeZone('UTC'));
-            if (!$date) {
-                return new WP_Error('rest_invalid_date', 'Định dạng ngày không hợp lệ.', ['status' => 400]);
+            $schedule = $date_local !== ''
+                ? contentai_prepare_schedule_dates_from_local($date_local)
+                : contentai_prepare_schedule_dates($date_gmt);
+            if (is_wp_error($schedule)) {
+                return $schedule;
             }
 
             $result = wp_update_post([
                 'ID'            => $post_id,
                 'post_status'   => 'future',
-                'post_date'     => $date->format('Y-m-d H:i:s'),
-                'post_date_gmt' => $date->format('Y-m-d H:i:s'),
+                'post_date'     => $schedule['post_date'],
+                'post_date_gmt' => $schedule['post_date_gmt'],
                 'edit_date'     => true,
             ]);
 
             if (is_wp_error($result)) return $result;
-
-            return ['success' => true, 'post_id' => $post_id, 'scheduled_date' => $date_gmt];
+            return ['success' => true, 'post_id' => $post_id, 'scheduled_date' => $date_local ?: $date_gmt];
         },
-        'permission_callback' => '__return_true',
+        'permission_callback' => 'contentai_user_can_edit_posts',
     ]);
 });
 
 // AJAX fallback — dùng khi REST API bị block
 add_action('wp_ajax_contentai_api', function () {
+    check_ajax_referer('wp_rest');
     $user_id = get_current_user_id();
     if ($user_id === 0) {
         wp_send_json_error(['message' => 'Bạn cần đăng nhập.'], 401);
+    }
+    if (!contentai_user_can_edit_posts()) {
+        wp_send_json_error(['message' => 'Bạn không có quyền dùng ContentAI.'], 403);
     }
 
     // New format: _path=contentai/v1/posts&status=draft&after=... (separate params)
@@ -283,13 +440,12 @@ add_action('wp_ajax_contentai_api', function () {
             break;
 
         case 'posts': {
-            $status = sanitize_text_field($_REQUEST['status'] ?? 'draft');
-            $after  = sanitize_text_field($_REQUEST['after'] ?? '');
-            $before = sanitize_text_field($_REQUEST['before'] ?? '');
-            $args = ['post_type' => 'post', 'post_status' => $status, 'posts_per_page' => 100];
-            if ($after)  $args['date_after']  = $after;
-            if ($before) $args['date_before'] = $before;
-            $posts = get_posts($args);
+            $status       = sanitize_text_field($_REQUEST['status'] ?? 'draft');
+            $after        = sanitize_text_field($_REQUEST['after'] ?? '');
+            $before       = sanitize_text_field($_REQUEST['before'] ?? '');
+            $after_local  = sanitize_text_field($_REQUEST['after_local'] ?? '');
+            $before_local = sanitize_text_field($_REQUEST['before_local'] ?? '');
+            $posts = get_posts(contentai_build_posts_query_args($status, $after, $before, $after_local, $before_local));
             $result = array_values(array_map(fn($p) => [
                 'id' => $p->ID, 'title' => get_the_title($p), 'content' => $p->post_content,
                 'status' => $p->post_status, 'date' => $p->post_date,
@@ -301,47 +457,52 @@ add_action('wp_ajax_contentai_api', function () {
         }
 
         default:
-            error_log('[ContentAI AJAX] unknown endpoint: ' . ($endpoint_base ?: 'empty'));
-            wp_send_json_error(['message' => 'Unknown endpoint: ' . $endpoint_base], 400);
+            error_log('[ContentAI AJAX] unknown endpoint: ' . ($path ?: 'empty'));
+            wp_send_json_error(['message' => 'Unknown endpoint: ' . $path], 400);
     }
 });
 
 // AJAX: /admin-ajax.php?action=contentai_schedule
 add_action('wp_ajax_contentai_schedule', function () {
+    check_ajax_referer('wp_rest');
     $user_id = get_current_user_id();
     if ($user_id === 0) {
         wp_send_json_error(['message' => 'Bạn cần đăng nhập.'], 401);
     }
+    if (!contentai_user_can_edit_posts()) {
+        wp_send_json_error(['message' => 'Bạn không có quyền dùng ContentAI.'], 403);
+    }
 
-    $post_id  = (int) ($_POST['post_id'] ?? 0);
-    $date_gmt = sanitize_text_field($_POST['date_gmt'] ?? '');
+    $post_id    = (int) ($_POST['post_id'] ?? 0);
+    $date_gmt   = sanitize_text_field($_POST['date_gmt'] ?? '');
+    $date_local = sanitize_text_field($_POST['date_local'] ?? '');
 
     if (!$post_id || !get_post($post_id)) {
         wp_send_json_error(['message' => 'Bài viết không tồn tại.'], 404);
     }
+    if (!current_user_can('edit_post', $post_id)) {
+        wp_send_json_error(['message' => 'Bạn không có quyền lên lịch bài viết này.'], 403);
+    }
 
-    // Parse the incoming date and apply WP blog timezone
-    $tz_string = get_option('timezone_string') ?: 'UTC';
-    try {
-        $date_utc = new DateTime($date_gmt, new DateTimeZone('UTC'));
-        $date_utc->setTimezone(new DateTimeZone($tz_string));
-    } catch (Exception $e) {
+    $schedule = $date_local !== ''
+        ? contentai_prepare_schedule_dates_from_local($date_local)
+        : contentai_prepare_schedule_dates($date_gmt);
+    if (is_wp_error($schedule)) {
         wp_send_json_error(['message' => 'Định dạng ngày không hợp lệ.'], 400);
     }
 
     $result = wp_update_post([
         'ID'            => $post_id,
         'post_status'   => 'future',
-        'post_date'     => $date_utc->format('Y-m-d H:i:s'),
-        'post_date_gmt' => gmdate('Y-m-d H:i:s', strtotime($date_gmt)),
+        'post_date'     => $schedule['post_date'],
+        'post_date_gmt' => $schedule['post_date_gmt'],
         'edit_date'     => true,
     ]);
 
     if (is_wp_error($result)) {
         wp_send_json_error(['message' => $result->get_error_message()], 500);
     }
-
-    wp_send_json_success(['post_id' => $post_id, 'scheduled_date' => $date_gmt]);
+    wp_send_json_success(['post_id' => $post_id, 'scheduled_date' => $date_local ?: $date_gmt]);
 });
 
 // ============================================================
@@ -362,24 +523,41 @@ add_action('admin_menu', function () {
 
     // Sub-menus (categories)
     add_submenu_page('contentai', 'Dashboard', 'Dashboard', 'edit_posts', 'contentai', 'contentai_dashboard_page');
-    add_submenu_page('contentai', 'Viết bài AI', 'Viết bài AI', 'edit_posts', 'contentai-write', 'contentai_write_page');
     add_submenu_page('contentai', 'Lịch nội dung', 'Lịch nội dung', 'edit_posts', 'contentai-calendar', 'contentai_calendar_page');
-    add_submenu_page('contentai', 'Lịch sử', 'Lịch sử', 'edit_posts', 'contentai-history', 'contentai_history_page');
     add_submenu_page('contentai', 'Cài đặt', 'Cài đặt', 'manage_options', 'contentai-settings', 'contentai_settings_page');
 });
 
+add_action('admin_init', function () {
+    if (!is_admin() || !current_user_can('edit_posts')) {
+        return;
+    }
+
+    $page = sanitize_key($_GET['page'] ?? '');
+    if ($page === 'contentai-write') {
+        wp_safe_redirect(admin_url('post-new.php'));
+        exit;
+    }
+
+    if ($page === 'contentai-history') {
+        wp_safe_redirect(admin_url('admin.php?page=contentai'));
+        exit;
+    }
+});
+
 function contentai_dashboard_page() {
-    $user_id  = get_current_user_id();
-    $used     = contentai_get_used_count($user_id);
+    $usage    = contentai_get_usage_info(home_url());
+    $used     = $usage['count'];
+    $limit    = $usage['limit'];
     $license  = contentai_check_license_status();
     $is_pro   = ($license['tier'] ?? 'free') === 'pro' && ($license['valid'] ?? false);
+    $usage_available = !empty($usage['available']);
     ?>
     <div class="wrap">
         <h1>ContentAI — Dashboard</h1>
         <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:20px; max-width:800px;">
             <div style="background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:20px;">
-                <div style="font-size:28px; font-weight:700; color:#2563eb;"><?php echo esc_html($used); ?>/<?php echo CONTENTAI_FREE_LIMIT; ?></div>
-                <div style="font-size:13px; color:#888; margin-top:4px;">Bài đã dùng tháng này</div>
+                <div style="font-size:28px; font-weight:700; color:#2563eb;"><?php echo esc_html($usage_available ? "{$used}/{$limit}" : '--'); ?></div>
+                <div style="font-size:13px; color:#888; margin-top:4px;"><?php echo esc_html($usage_available ? 'Bài đã dùng tháng này' : 'Chưa đọc được quota từ API'); ?></div>
             </div>
             <div style="background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:20px;">
                 <div style="font-size:28px; font-weight:700; color:<?php echo $is_pro ? '#9333ea' : '#16a34a'; ?>;"><?php echo $is_pro ? 'Pro' : 'Free'; ?></div>
@@ -392,8 +570,13 @@ function contentai_dashboard_page() {
         </div>
         <?php if (!$is_pro): ?>
         <div style="margin-top:20px; padding:16px; background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; max-width:800px;">
-            <strong>Bạn đang dùng gói Free</strong> — <?php echo CONTENTAI_FREE_LIMIT; ?> bài/tháng.
+            <strong>Bạn đang dùng gói Free</strong> — <?php echo esc_html($limit); ?> bài/tháng.
             <a href="<?php echo admin_url('admin.php?page=contentai-settings'); ?>">Nâng cấp Pro</a> để không giới hạn.
+        </div>
+        <?php endif; ?>
+        <?php if (!$usage_available): ?>
+        <div style="margin-top:12px; padding:12px 16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; max-width:800px;">
+            Không đồng bộ được usage từ API. Dashboard có thể hiển thị lệch quota cho đến khi backend hoạt động lại.
         </div>
         <?php endif; ?>
         <div style="margin-top:24px;">
@@ -402,56 +585,6 @@ function contentai_dashboard_page() {
             <a href="<?php echo admin_url('post-new.php'); ?>" class="button button-primary button-hero">Viết bài mới với AI</a>
         </div>
     </div>
-    <?php
-}
-
-function contentai_write_page() {
-    // Enqueue admin React app
-    $dist_path = CONTENTAI_PLUGIN_PATH . 'dist/';
-    $dist_url = CONTENTAI_PLUGIN_URL . 'dist/';
-
-    if (file_exists($dist_path . 'admin.js')) {
-        wp_enqueue_script(
-            'contentai-admin',
-            $dist_url . 'admin.js',
-            [],
-            filemtime($dist_path . 'admin.js'),
-            true
-        );
-
-        // Enqueue admin CSS
-        if (file_exists($dist_path . 'admin.css')) {
-            wp_enqueue_style(
-                'contentai-admin',
-                $dist_url . 'admin.css',
-                [],
-                filemtime($dist_path . 'admin.css')
-            );
-        }
-
-        $user_id  = get_current_user_id();
-        $token    = contentai_generate_jwt($user_id);
-        $license  = contentai_check_license_status();
-        $used_count = contentai_get_used_count($user_id);
-        $is_pro  = ($license['tier'] ?? 'free') === 'pro' && ($license['valid'] ?? false);
-
-        wp_localize_script('contentai-admin', 'contentaiData', [
-            'apiUrl'      => CONTENTAI_API_URL,
-            'token'       => $token,
-            'userId'      => $user_id,
-            'usedCount'   => $used_count,
-            'freeLimit'   => CONTENTAI_FREE_LIMIT,
-            'isPro'       => $is_pro,
-            'siteUrl'     => home_url(),
-            'restUrl'     => esc_url_raw(rest_url()),
-            'nonce'       => wp_create_nonce('wp_rest'),
-            'adminUrl'    => admin_url(),
-            'licenseTier' => $license['tier'] ?? 'free',
-            'licenseKey'  => get_option('contentai_license_key', ''),
-        ]);
-    }
-    ?>
-    <div id="contentai-admin-root"></div>
     <?php
 }
 
@@ -490,28 +623,6 @@ function contentai_calendar_page() {
     <?php
 }
 
-function contentai_history_page() {
-    ?>
-    <div class="wrap">
-        <h1>Lịch sử Generate</h1>
-        <p style="color:#888;">Danh sách các bài viết đã generate bằng AI.</p>
-        <table class="wp-list-table widefat fixed striped" style="max-width:900px;">
-            <thead>
-                <tr>
-                    <th>Keyword</th>
-                    <th>Loại</th>
-                    <th>Ngày</th>
-                    <th>Trạng thái</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td colspan="4" style="text-align:center; padding:24px; color:#999;">Chưa có lịch sử. Hãy thử generate bài đầu tiên!</td></tr>
-            </tbody>
-        </table>
-    </div>
-    <?php
-}
-
 function contentai_settings_page() {
     $license = contentai_check_license_status();
     $is_pro  = ($license['tier'] ?? 'free') === 'pro' && ($license['valid'] ?? false);
@@ -542,7 +653,6 @@ function contentai_settings_page() {
             delete_option('contentai_license_tier');
             delete_option('contentai_license_status');
             delete_option('contentai_license_expires');
-            delete_option('contentai_license_last_check');
             delete_option('contentai_license_last_check');
             $key = '';
             $is_pro = false;
@@ -605,29 +715,6 @@ function contentai_settings_page() {
                 <?php endif; ?>
             </p>
         </form>
-
-        <hr style="margin:30px 0;" />
-
-        <form method="post" action="options.php" style="max-width:600px;">
-            <table class="form-table">
-                <tr>
-                    <th>API URL</th>
-                    <td><input type="text" value="<?php echo esc_attr(CONTENTAI_API_URL); ?>" class="regular-text" disabled />
-                    <p class="description">Endpoint API backend</p></td>
-                </tr>
-                <tr>
-                    <th>Giọng văn mặc định</th>
-                    <td>
-                        <select class="regular-text">
-                            <option>Chuyên nghiệp</option>
-                            <option>Thân thiện</option>
-                            <option>Thuyết phục</option>
-                            <option>Đơn giản</option>
-                        </select>
-                    </td>
-                </tr>
-            </table>
-        </form>
     </div>
     <?php
 }
@@ -680,21 +767,25 @@ add_action('enqueue_block_editor_assets', function () {
     }
 
     // CSS cho left panel layout injection
-    wp_add_inline_style("contentai-editor", contentai_get_layout_css());
+    wp_register_style('contentai-editor-inline', false, [], filemtime($dist_path . 'editor.js'));
+    wp_enqueue_style('contentai-editor-inline');
+    wp_add_inline_style('contentai-editor-inline', contentai_get_layout_css());
 
     // Inject data cho React (window.contentaiData)
     $user_id  = get_current_user_id();
     $token    = contentai_generate_jwt($user_id);
     $license  = contentai_check_license_status();
-    $used_count = contentai_get_used_count($user_id);
+    $usage    = contentai_get_usage_info(home_url());
     $is_pro  = ($license['tier'] ?? 'free') === 'pro' && ($license['valid'] ?? false);
 
     wp_localize_script('contentai-editor', 'contentaiData', [
         'apiUrl'      => CONTENTAI_API_URL,
         'token'       => $token,
         'userId'      => $user_id,
-        'usedCount'   => $used_count,
-        'freeLimit'   => CONTENTAI_FREE_LIMIT,
+        'usedCount'   => $usage['count'],
+        'freeLimit'   => $usage['limit'],
+        'usageAvailable' => !empty($usage['available']),
+        'usageMessage' => $usage['message'] ?? '',
         'isPro'       => $is_pro,
         'siteUrl'     => home_url(),
         'licenseTier' => $license['tier'] ?? 'free',
@@ -737,7 +828,7 @@ function contentai_get_layout_css() {
 
 // Thêm type="module" cho script Vite output
 add_filter('script_loader_tag', function ($tag, $handle) {
-    if ($handle === 'contentai-editor' || $handle === 'contentai-admin' || $handle === 'contentai-calendar') {
+    if ($handle === 'contentai-editor' || $handle === 'contentai-calendar') {
         $tag = str_replace(' src=', ' type="module" src=', $tag);
     }
     return $tag;

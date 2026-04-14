@@ -13,10 +13,6 @@ export default function App() {
     setResults(prev => [{ ...result, id: Date.now() }, ...prev]);
   }, []);
 
-  const removeResult = useCallback((id) => {
-    setResults(prev => prev.filter(r => r.id !== id));
-  }, []);
-
   useEffect(() => {
     document.body.classList.toggle('contentai-left-open', panelOpen);
     return () => document.body.classList.remove('contentai-left-open');
@@ -32,7 +28,6 @@ export default function App() {
           onKeywordChange={setKeyword}
           results={results}
           addResult={addResult}
-          removeResult={removeResult}
         />
       )}
 

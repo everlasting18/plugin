@@ -6,11 +6,17 @@ export interface ResearchInput {
   keyword: string;
   tone: string;
   audience: string;
+  language?: string;
+  framework?: string;
   niche?: string;
 }
 
 export function researchPrompt(input: ResearchInput): string {
-  const { keyword, tone, audience, niche } = input;
+  const { keyword, tone, audience, language = "vi", framework } = input;
+  const frameworkLine = framework && framework !== "none"
+    ? `- Ưu tiên insight phục vụ framework viết "${framework}" để writer triển khai đúng cấu trúc.\n`
+    : "";
+  const outputLanguage = language === "en" ? "English" : "Tiếng Việt";
 
   return `
 # ROLE
@@ -18,6 +24,8 @@ Bạn là Research Analyst chuyên thu thập và tổng hợp thông tin cho b�
 
 # NHIỆM VỤ
 Phân tích chủ đề "${keyword}" và xác định những gì cần research TRƯỚC KHI VIẾT.
+Ngôn ngữ output phải là ${outputLanguage}.
+${frameworkLine}
 
 # CÁC BƯỚC THU THẬP
 

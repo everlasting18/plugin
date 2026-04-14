@@ -1,23 +1,52 @@
 import { aiComplete, parseJSON } from "../services/openrouter.ts";
 import { webSearch, formatSearchResults } from "../tools/search.ts";
 import { researchPrompt } from "../prompts/research.ts";
+import { RESEARCH_SYSTEM_PROMPT } from "../prompts/system.ts";
 import { logger } from "../lib/logger.ts";
+import {
+  buildSearchQueries,
+  dedupeCombinedResults,
+  prioritizeDomainDiversity,
+} from "./researchQueries.ts";
+import {
+  MAX_MERGED_SEARCH_RESULTS,
+  MAX_SEARCH_RESULTS_PER_QUERY,
+  RESEARCH_MIN_TOKENS,
+  RESEARCH_MAX_TOKENS,
+  RESEARCH_TOKENS_PER_1K_CHARS,
+  RESEARCH_TOKENS_PER_RESULT,
+} from "./contentConfig.ts";
+import type { ResearchData } from "./types.ts";
 
-export interface ResearchData {
-  stats: string[];
-  trends: string[];
-  caseStudies: string[];
-  commonMistakes: string[];
-  uniqueAngles: string[];
-  painPoints: string[];
-  expertQuotes: string[];
-  suggestedOutline?: {
-    h2sections: string[];
-    faqQuestions: string[];
-    recommendedLength: string;
-    recommendedTone: string;
+function buildDefaultResearchData(
+  tone: string,
+  webSearchResults: string,
+): ResearchData {
+  return {
+    stats: [],
+    trends: [],
+    caseStudies: [],
+    commonMistakes: [],
+    uniqueAngles: [],
+    painPoints: [],
+    expertQuotes: [],
+    suggestedOutline: {
+      h2sections: [],
+      faqQuestions: [],
+      recommendedLength: "medium",
+      recommendedTone: tone,
+    },
+    webSearchResults,
   };
-  webSearchResults: string;
+}
+
+function computeResearchMaxTokens(searchResultCount: number, formattedSearch: string): number {
+  const densityBoost = Math.min(searchResultCount, MAX_MERGED_SEARCH_RESULTS) *
+    RESEARCH_TOKENS_PER_RESULT;
+  const contextBoost = Math.floor(formattedSearch.length / 1000) *
+    RESEARCH_TOKENS_PER_1K_CHARS;
+  const dynamicBudget = RESEARCH_MIN_TOKENS + densityBoost + contextBoost;
+  return Math.min(RESEARCH_MAX_TOKENS, Math.max(RESEARCH_MIN_TOKENS, dynamicBudget));
 }
 
 /**
@@ -29,70 +58,86 @@ export async function runResearchAgent(
   keyword: string,
   tone: string,
   audience: string,
+  language: string,
+  framework?: string,
   niche?: string,
+  useWebSearch = true,
   onChunk?: (text: string) => void,
 ): Promise<ResearchData> {
-  onChunk?.("[Research] Đang tìm kiếm thông tin...\n");
+  let formattedSearch = "Web search disabled by caller.";
+  let hasSearchResults = false;
+  let searchResultCount = 0;
 
-  // ── Bước 1: Web search nhiều góc độ ─────────────────────────
-  const searchQueries = [
-    keyword,
-    `${keyword} statistics 2024 2025`,
-    `${keyword} best practices`,
-    `${keyword} common mistakes`,
-    `${keyword} trends`,
-  ];
+  if (useWebSearch) {
+    onChunk?.("[Research] Đang tìm kiếm thông tin...\n");
 
-  const searchStart = Date.now();
-  const searchResults = await Promise.all(
-    searchQueries.map((q, idx) => {
-      const queryLabel = `search[${idx + 1}/${searchQueries.length}]`;
-      logger.info(queryLabel, { q });
-      return webSearch(q, 5);
-    }),
-  );
-  const searchMs = Date.now() - searchStart;
+    // ── Bước 1: Web search vừa đủ góc độ cần thiết ──────────────
+    const searchQueries = buildSearchQueries(keyword, audience, framework, niche);
 
-  const combinedSearch = {
-    query: keyword,
-    results: searchResults.flatMap((r) => r.results).slice(0, 20),
-    totalResults: searchResults.reduce((acc, r) => acc + r.totalResults, 0),
-  };
+    const searchStart = Date.now();
+    const searchResults = await Promise.all(
+      searchQueries.map((q, idx) => {
+        const queryLabel = `search[${idx + 1}/${searchQueries.length}]`;
+        logger.info(queryLabel, { q });
+        return webSearch(q, MAX_SEARCH_RESULTS_PER_QUERY);
+      }),
+    );
+    const searchMs = Date.now() - searchStart;
 
-  const formattedSearch = formatSearchResults(combinedSearch);
-  onChunk?.(`[Research] Tìm được ${combinedSearch.totalResults} kết quả.\n`);
-  logger.debug("web search completed", {
-    durationMs: searchMs,
-    totalResults: combinedSearch.totalResults,
-  });
+    const mergedResults = prioritizeDomainDiversity(dedupeCombinedResults(
+      searchResults.flatMap((r) => r.results),
+    )).slice(0, MAX_MERGED_SEARCH_RESULTS);
+
+    const combinedSearch = {
+      query: keyword,
+      results: mergedResults,
+      totalResults: searchResults.reduce((acc, r) => acc + r.totalResults, 0),
+    };
+    hasSearchResults = combinedSearch.results.length > 0;
+    searchResultCount = combinedSearch.results.length;
+
+    formattedSearch = formatSearchResults(combinedSearch);
+    onChunk?.(`[Research] Tìm được ${combinedSearch.totalResults} kết quả.\n`);
+    logger.debug("web search completed", {
+      durationMs: searchMs,
+      totalResults: combinedSearch.totalResults,
+    });
+  } else {
+    onChunk?.("[Research] Bỏ qua web search theo tuỳ chọn.\n");
+    logger.info("web search skipped", { keyword, audience, niche: niche || null });
+  }
 
   // ── Bước 2: AI phân tích research ────────────────────────────
+  if (useWebSearch && !hasSearchResults) {
+    onChunk?.("[Research] Không có kết quả đủ tốt từ web search, bỏ qua AI research để tiết kiệm token.\n");
+    logger.info("research AI skipped — no usable web search results", {
+      keyword,
+      audience,
+      niche: niche || null,
+    });
+    return buildDefaultResearchData(tone, formattedSearch);
+  }
+
   onChunk?.("[Research] Đang phân tích và tổng hợp...\n");
 
   const aiStart = Date.now();
-  const prompt = researchPrompt({ keyword, tone, audience, niche }) +
+  const prompt = researchPrompt({ keyword, tone, audience, language, framework, niche }) +
     `\n\n# WEB SEARCH RESULTS:\n${formattedSearch}`;
+  const researchMaxTokens = computeResearchMaxTokens(searchResultCount, formattedSearch);
+  logger.debug("research AI token budget", {
+    maxTokens: researchMaxTokens,
+    hasSearchResults,
+  });
 
-  const rawResponse = await aiComplete(prompt, { maxTokens: 2000 });
+  const rawResponse = await aiComplete(prompt, {
+    maxTokens: researchMaxTokens,
+    systemPrompt: RESEARCH_SYSTEM_PROMPT,
+    temperature: 0.35,
+  });
   const aiMs = Date.now() - aiStart;
   logger.debug("research AI analysis completed", { durationMs: aiMs, model: "research" });
 
-  const defaultParsed = {
-    stats: [] as string[],
-    trends: [] as string[],
-    caseStudies: [] as string[],
-    commonMistakes: [] as string[],
-    uniqueAngles: [] as string[],
-    painPoints: [] as string[],
-    expertQuotes: [] as string[],
-    suggestedOutline: {
-      h2sections: [] as string[],
-      faqQuestions: [] as string[],
-      recommendedLength: "medium",
-      recommendedTone: tone,
-    },
-    webSearchResults: formattedSearch,
-  };
+  const defaultParsed = buildDefaultResearchData(tone, formattedSearch);
 
   let parsed = { ...defaultParsed };
 

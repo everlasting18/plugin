@@ -2,26 +2,34 @@
 // Writer Agent — Viết content dựa trên research + parameters
 // ============================================================
 
+import type { ResearchData } from "../agents/types.ts";
+import {
+  DEFAULT_CONTENT_AUDIENCE,
+  DEFAULT_CONTENT_TONE,
+  WORD_TARGET_BY_LENGTH,
+  WRITER_MAX_TOKENS_BY_LENGTH,
+} from "../agents/contentConfig.ts";
+
 export interface WriterInput {
   keyword: string;
   tone: string;
   length: string;
   audience: string;
+  language: string;
   framework: string;
   niche?: string;
-  research: {
-    stats: string[];
-    trends: string[];
-    caseStudies: string[];
-    commonMistakes: string[];
-    uniqueAngles: string[];
-    painPoints: string[];
-    expertQuotes: string[];
-    suggestedOutline?: {
-      h2sections: string[];
-      faqQuestions: string[];
-    };
-  };
+  strategyHint?: string;
+  research: Pick<
+    ResearchData,
+    | "stats"
+    | "trends"
+    | "caseStudies"
+    | "commonMistakes"
+    | "uniqueAngles"
+    | "painPoints"
+    | "expertQuotes"
+    | "suggestedOutline"
+  >;
   editorFeedback?: string; // nếu đang viết lại theo feedback
 }
 
@@ -52,57 +60,60 @@ const toneMap: Record<string, string> = {
     - Kết bài quay lại câu chuyện mở đầu (callback)`,
 };
 
-const frameworkMap: Record<string, string> = {
-  app_pas: `## BỐ CỤC: APP (mở bài) + PAS (thân bài)
-MỞ BÀI — APP (100–150 từ):
-  AGREE: Mở bằng 1 sự thật/trải nghiệm mà người đọc gật đầu đồng ý.
-  PROMISE: Hứa cụ thể bài này sẽ giúp được gì.
-  PREVIEW: Tóm tắt nhanh 3–4 điểm chính sẽ cover.
-THÂN BÀI — Mỗi H2 theo PAS:
-  PROBLEM: Mở section bằng vấn đề cụ thể.
-  AGITATE: 1–2 câu nêu hậu quả nếu bỏ qua.
-  SOLUTION: Giải pháp chi tiết, actionable.
-KẾT BÀI (80–120 từ): Tóm tắt takeaway + CTA mềm + [INTERNAL LINK].`,
+const audienceMap: Record<string, string> = {
+  general: `độc giả phổ thông:
+    - Giải thích rõ nhưng không dạy đời
+    - Ưu tiên ví dụ gần gũi và tính ứng dụng ngay`,
 
-  aida: `## BỐ CỤC: AIDA
-ATTENTION (80–120 từ): Hook cực mạnh — số liệu gây sốc hoặc câu hỏi đảo ngược.
-INTEREST (40% content): Đào sâu vấn đề với data, insight, góc nhìn mới.
-DESIRE (40% content): Trình bày giải pháp với case study, before/after.
-ACTION (60–100 từ): CTA duy nhất, cụ thể, có lý do hành động ngay.`,
+  professional: `người làm nghề / chuyên gia:
+    - Đi thẳng vào vấn đề, tránh kiến thức nhập môn dài dòng
+    - Ưu tiên phân tích, edge case, trade-off, ví dụ thực chiến`,
 
-  pas: `## BỐ CỤC: PAS
-PROBLEM (20%): Mô tả vấn đề bằng đúng ngôn ngữ người đọc.
-AGITATE (30%): Phóng đại hệ quả dây chuyền.
-SOLUTION (50%): Giải pháp từng bước — what → how → why. Case study cho bước quan trọng nhất.`,
-
-  eeat_skyscraper: `## BỐ CỤC: E-E-A-T + Skyscraper
-MỤC TIÊU: Viết bài TOÀN DIỆN NHẤT cho keyword này.
-E-E-A-T: EXPERIENCE (first-person), EXPERTISE (dẫn nguồn uy tín), AUTHORITATIVENESS (bao quát), TRUSTWORTHINESS (thừa nhận giới hạn).
-SKYSCRAPER: Nhiều data hơn, cập nhật hơn, đầy đủ hơn, thực tế hơn bài đang rank.
-CẤU TRÚC: H1 → Intro inverted pyramid → 6–10 H2 → FAQ → Nguồn tham khảo → Kết.`,
-
-  hero: `## BỐ CỤC: Hero's Journey
-THẾ GIỚI BÌNH THƯỜNG (15%): Mô tả thực trạng, pain point hàng ngày.
-LỜI KÊU GỌI (15%): Catalyst khiến không thể ở yên.
-THỬ THÁCH & MENTOR (50%): Từng thử thách + bài học cụ thể. Mentor = kiến thức/công cụ.
-BIẾN ĐỔI (20%): Kết quả cụ thể, đo lường được. CTA.`,
+  beginner: `người mới bắt đầu:
+    - Giải thích khái niệm ngay lần đầu xuất hiện
+    - Mỗi phần nên trả lời cả "làm gì" và "vì sao"`,
 };
 
-const wordCount: Record<string, number> = {
-  short: 600,
-  medium: 1400,
-  long: 2800,
-  extra_long: 3500,
+const frameworkMap: Record<string, string> = {
+  adaptive_hybrid: `## FRAMEWORK: ADAPTIVE HYBRID (UNIVERSAL)
+- Mở bài: hook cụ thể + bối cảnh + promise rõ + preview nội dung chính
+- Thân bài theo tầng: insight cốt lõi -> ví dụ/case -> cách áp dụng -> lỗi cần tránh
+- Với intent quyết định: thêm so sánh/trade-off và khuyến nghị theo tình huống
+- Với intent hướng dẫn: thêm checklist/bước làm + checkpoint
+- Kết bài: tóm tắt quyết định hoặc next step rõ ràng`,
+
+  aida: `## FRAMEWORK: AIDA
+- Attention: hook mạnh ngay 2 câu đầu
+- Interest: giải thích bối cảnh và insight người đọc cần biết
+- Desire: cho thấy lợi ích, ví dụ, before/after, case ngắn
+- Action: chốt bằng hành động tiếp theo rõ ràng`,
+
+  pas: `## FRAMEWORK: PAS
+- Mở bằng vấn đề cụ thể, dùng ngôn ngữ người đọc
+- Đào sâu hậu quả thực tế nếu xử lý sai hoặc chậm
+- Phần giải pháp phải là what -> how -> why, không nói chung chung`,
+
+  eeat_skyscraper: `## FRAMEWORK: E-E-A-T + SKYSCRAPER
+- Viết bài như tài liệu tham khảo đáng tin cậy nhất cho keyword
+- Ưu tiên kinh nghiệm thực tế, ví dụ, giới hạn áp dụng, sai lầm thường gặp
+- Bao quát đầy đủ nhưng vẫn mạch lạc; tránh dài mà loãng`,
+
+  howto: `## FRAMEWORK: HOW-TO
+- Mở bài nêu rõ ai nên đọc, kết quả đạt được và điều kiện cần
+- Thân bài chia bước rõ ràng: mục tiêu -> cách làm -> lưu ý -> checkpoint
+- Cuối bài có checklist tóm tắt và lỗi thường gặp`,
 };
 
 export function writerPrompt(input: WriterInput): string {
   const {
-    keyword, tone, length, audience, framework,
-    niche, research, editorFeedback,
+    keyword, tone, length, audience, language, framework,
+    niche, research, strategyHint, editorFeedback,
   } = input;
 
-  const toneVi = toneMap[tone] || toneMap.professional;
-  const words = wordCount[length] || 1400;
+  const toneVi = toneMap[tone] || toneMap[DEFAULT_CONTENT_TONE];
+  const audienceVi = audienceMap[audience] || audienceMap[DEFAULT_CONTENT_AUDIENCE];
+  const outputLanguage = language === "en" ? "English" : "Tiếng Việt";
+  const words = WORD_TARGET_BY_LENGTH[length as keyof typeof WORD_TARGET_BY_LENGTH] || WORD_TARGET_BY_LENGTH.medium;
 
   // Safe research access — defensive fallbacks
   const safeStats = Array.isArray(research?.stats) ? research.stats : [];
@@ -113,84 +124,134 @@ export function writerPrompt(input: WriterInput): string {
   const safePain = Array.isArray(research?.painPoints) ? research.painPoints : [];
   const safeQuotes = Array.isArray(research?.expertQuotes) ? research.expertQuotes : [];
   const safeH2 = Array.isArray(research?.suggestedOutline?.h2sections) ? research.suggestedOutline.h2sections : [];
+  const safeFaq = Array.isArray(research?.suggestedOutline?.faqQuestions) ? research.suggestedOutline.faqQuestions : [];
 
   const fw = framework && framework !== "none" && frameworkMap[framework]
     ? frameworkMap[framework]
-    : `## BỐ CỤC MẶC ĐỊNH
-- Mở bài (100–150 từ): Hook → Pain point → Promise → Preview
-- Thân bài: ${safeH2.map(s => `"${s}"`).join(", ") || "5-7 H2 sections"}
-- FAQ: 3–5 câu hỏi thường gặp
-- Kết bài (80–120 từ): Tóm tắt + CTA`;
+    : `## FRAMEWORK: BLOG CHUYÊN NGHIỆP MẶC ĐỊNH
+- Mở bài: hook cụ thể -> bối cảnh -> promise -> preview
+- Thân bài: ${safeH2.map(s => `"${s}"`).join(", ") || "4-6 H2 sections có logic rõ ràng"}
+- Ưu tiên checklist, bảng, ví dụ hoặc FAQ khi thực sự hữu ích
+- Kết bài: tổng hợp takeaway + hành động tiếp theo`;
 
   const isRevision = !!editorFeedback;
 
   const roleBlock = isRevision
     ? `# ROLE
-Bạn là Senior Content Editor — viết lại bài dựa trên editorial feedback cụ thể.
-Bạn PHẢI áp dụng TẤT CẢ feedback bên dưới. Không được bỏ qua bất kỳ điểm nào.
+Bạn là Senior Blog Editor. Nhiệm vụ của bạn là viết lại bài để bài trông sắc hơn, chuyên nghiệp hơn và đúng feedback hơn.
+Bạn PHẢI áp dụng toàn bộ feedback bên dưới nhưng vẫn giữ bài tự nhiên, không để lộ dấu vết "đang sửa theo checklist".
 
 # EDITORIAL FEEDBACK CẦN ÁP DỤNG:
 ${editorFeedback}
 
 # YÊU CẦU BẮT BUỘC:
-- Giữ nguyên H1 và cấu trúc H2 chính
-- Chỉ sửa những phần editor yêu cầu
-- Nếu feedback yêu cầu thêm data → dùng thông tin từ phần research
-- Output phải là bài viết hoàn chỉnh (không chỉ trả lời feedback)`
+- Giữ nguyên H1 và các H2 chính nếu feedback không yêu cầu đổi
+- Không trả lời dạng note hay giải thích
+- Output phải là bài hoàn chỉnh, sẵn sàng publish`
     : `# ROLE
-Bạn là blog content writer chuyên nghiệp cho WordPress.
-Bạn viết bài chuẩn SEO, giàu giá trị thực tế, giữ chân người đọc từ đầu đến cuối.
-Bạn KHÔNG viết bài generic — mỗi bài phải có insight, data, hoặc góc nhìn mà bài khác chưa cover đủ sâu.`;
+Bạn là Senior Blog Writer cho WordPress.
+Bạn viết bài blog chuyên nghiệp, đọc tự nhiên, có chiều sâu, có góc nhìn biên tập, và tránh hoàn toàn giọng văn AI sáo rỗng.
+Mục tiêu là tạo ra bài có thể publish ngay sau khi biên tập nhẹ.`;
 
   const researchBlock = `
-# RESEARCH DATA — DÙNG TRONG BÀI VIẾT:
-Số liệu: ${safeStats.map(s => `- ${s}`).join("\n")}
-Xu hướng: ${safeTrends.map(t => `- ${t}`).join("\n")}
-Case Studies: ${safeCases.map(c => `- ${c}`).join("\n")}
-Sai lầm phổ biến: ${safeMistakes.map(m => `- ${m}`).join("\n")}
-Góc nhìn khác biệt: ${safeAngles.map(a => `- ${a}`).join("\n")}
-Pain Points: ${safePain.map(p => `- ${p}`).join("\n")}
-${safeQuotes.length ? `Trích dẫn chuyên gia: ${safeQuotes.map(q => `- ${q}`).join("\n")}` : ""}
+# RESEARCH INPUT
+Pain points:
+${safePain.map(p => `- ${p}`).join("\n") || "- Tự suy ra pain point thực tế từ keyword"}
+
+Số liệu / facts:
+${safeStats.map(s => `- ${s}`).join("\n") || "- Không có số liệu chắc chắn; không được bịa số liệu"}
+
+Case studies / ví dụ:
+${safeCases.map(c => `- ${c}`).join("\n") || "- Nếu không có case cụ thể, hãy dùng ví dụ thực tế nhưng không bịa thương hiệu/số liệu"}
+
+Sai lầm phổ biến:
+${safeMistakes.map(m => `- ${m}`).join("\n") || "- Tự nêu 2-4 sai lầm phổ biến nhất"}
+
+Góc nhìn khác biệt:
+${safeAngles.map(a => `- ${a}`).join("\n") || "- Tự chọn một angle hữu ích, cụ thể, ít sáo rỗng"}
+
+Xu hướng:
+${safeTrends.map(t => `- ${t}`).join("\n") || "- Chỉ đề cập xu hướng nếu thực sự liên quan"}
+
+${safeQuotes.length ? `Trích dẫn chuyên gia:\n${safeQuotes.map(q => `- ${q}`).join("\n")}` : ""}
+
+Outline gợi ý:
+${safeH2.map(h2 => `- ${h2}`).join("\n") || "- Tự lập outline 4-6 H2 trước khi viết"}
+
+FAQ gợi ý:
+${safeFaq.map(faq => `- ${faq}`).join("\n") || "- Tự thêm FAQ nếu phù hợp với intent"}
 `;
 
   const taskBlock = isRevision
     ? `# NHIỆM VỤ
-Viết lại bài blog hoàn chỉnh bằng tiếng Việt cho: "${keyword}"
+Viết lại bài blog hoàn chỉnh bằng ${outputLanguage} cho: "${keyword}"
 - Giọng văn: ${toneVi}
-- Đối tượng: ${audience}
+- Đối tượng: ${audienceVi}
 - Độ dài mục tiêu: ~${words} từ`
     : `# NHIỆM VỤ
-Viết bài blog hoàn chỉnh bằng tiếng Việt cho: "${keyword}"
+Viết bài blog hoàn chỉnh bằng ${outputLanguage} cho: "${keyword}"
 - Giọng văn: ${toneVi}
-- Đối tượng: ${audience}
+- Đối tượng: ${audienceVi}
 - Độ dài mục tiêu: ~${words} từ
 ${niche ? `- NICHE: ${niche}` : ""}`;
 
+  const planningBlock = `
+# TRƯỚC KHI VIẾT, HÃY TỰ LÀM THẦM 4 VIỆC NÀY
+1. Xác định search intent chính của keyword.
+2. Chọn một angle rõ ràng cho bài thay vì cover lan man.
+3. Lập outline 4-6 H2 theo logic đọc mượt.
+4. Chỉ sau đó mới viết bài hoàn chỉnh.
+
+KHÔNG in ra phần suy nghĩ, brief, outline nháp hay reasoning.
+Chỉ in ra bài hoàn chỉnh.
+`;
+  const strategyBlock = strategyHint?.trim()
+    ? `
+# CHIẾN LƯỢC ƯU TIÊN CHO KEYWORD NÀY
+${strategyHint}
+`
+    : "";
+
   return `
 ${roleBlock}
+
+${strategyBlock}
 
 ${researchBlock}
 
 ${taskBlock}
 
+${planningBlock}
+
 ${fw}
 
-# SEO ON-PAGE
-- Từ khóa chính: "${keyword}"
-  → Xuất hiện trong: H1, H2 đầu tiên, 100 từ đầu, kết luận
-  → Density: 1–1.5%, tự nhiên tuyệt đối
-- Internal link: Chèn [LINK: chủ đề liên quan] tối thiểu 3 vị trí
-- Featured snippet: Ít nhất 1 đoạn trả lời trực tiếp câu hỏi chính
+# QUY TẮC BẮT BUỘC
+- Toàn bộ output phải dùng ${outputLanguage}.
+- H1 đúng 1 lần. Thân bài chỉ dùng H2/H3.
+- Mỗi H2 phải trả lời một câu hỏi hoặc một ý lớn riêng, không lặp ý bằng cách diễn đạt khác.
+- Mở bài không được bắt đầu bằng định nghĩa kiểu từ điển hoặc câu sáo rỗng.
+- Ưu tiên câu cụ thể, ví dụ cụ thể, checklist cụ thể hơn là lời khuyên chung.
+- Nếu không chắc fact hoặc số liệu, đừng bịa. Hãy viết theo nguyên tắc thực hành thay vì bơm data giả.
+- Không chèn placeholder kiểu [LINK:], [INTERNAL LINK], [REF] vào output cuối.
+- Nếu phù hợp với intent, thêm FAQ ngắn 3-5 câu ở cuối bài.
+- Kết bài phải có next step hoặc CTA mềm, không kết cụt.
 
-# QUY TẮC CHẤT LƯỢNG
-- Mỗi H2 phải có VALUE riêng — đọc xong section đó, người đọc ĐÃ học/làm được 1 điều cụ thể
-- Xen kẽ format: paragraph → list → quote → table → paragraph
-- Câu trung bình 15–20 từ
-- Mỗi H2 có thẻ <strong> cho số liệu hoặc khái niệm chính
-- Tránh: "Trong thời đại ngày nay", "Như chúng ta đã biết", "Hãy cùng tìm hiểu"
+# DANH SÁCH CẤM
+- "Trong thời đại ngày nay"
+- "Như chúng ta đã biết"
+- "Không thể phủ nhận rằng"
+- "Hãy cùng tìm hiểu"
+- Mở bài bằng "${keyword} là..."
+- Lặp nguyên keyword quá gượng trong các câu liên tiếp
+
+# SEO THỰC DỤNG
+- Từ khóa chính "${keyword}" cần xuất hiện tự nhiên trong H1, đoạn đầu, ít nhất một H2 và phần kết.
+- Không nhồi keyword. Ưu tiên semantic variety và ngôn ngữ tự nhiên.
+- Nếu bài cần featured snippet, chèn một đoạn trả lời trực tiếp 40-60 từ hoặc một list ngắn rõ ràng.
 
 # WORDPRESS GUTENBERG OUTPUT
 Trả về HTML Gutenberg blocks. KHÔNG Markdown. KHÔNG preamble.
+Mỗi block comment mở phải có block comment đóng đúng loại.
 <!-- wp:heading {"level":1} -->
 <h1 class="wp-block-heading">Tiêu đề</h1>
 <!-- /wp:heading -->
@@ -200,18 +261,18 @@ Trả về HTML Gutenberg blocks. KHÔNG Markdown. KHÔNG preamble.
 <!-- wp:heading {"level":2} -->
 <h2 class="wp-block-heading">Section</h2>
 <!-- /wp:heading -->
+<!-- wp:list -->
+<ul class="wp-block-list"><li>Ý quan trọng</li></ul>
+<!-- /wp:list -->
 <!-- wp:quote -->
 <blockquote class="wp-block-quote"><p>Trích dẫn</p></blockquote>
 <!-- /wp:quote -->
+<!-- wp:table -->
+<figure class="wp-block-table"><table><thead><tr><th>Tiêu chí</th><th>Chi tiết</th></tr></thead><tbody><tr><td>Mục</td><td>Nội dung</td></tr></tbody></table></figure>
+<!-- /wp:table -->
 `.trim();
 }
 
 export function writerMaxTokens(length: string): number {
-  const tokens: Record<string, number> = {
-    short: 1500,
-    medium: 3500,
-    long: 7000,
-    extra_long: 9000,
-  };
-  return tokens[length] || 3500;
+  return WRITER_MAX_TOKENS_BY_LENGTH[length as keyof typeof WRITER_MAX_TOKENS_BY_LENGTH] || WRITER_MAX_TOKENS_BY_LENGTH.medium;
 }

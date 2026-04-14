@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { config } from "./config.ts";
 import routes from "./routes/mod.ts";
+import { ApiError } from "./lib/http.ts";
 import { startLogCapture } from "./lib/logStore.ts";
 
 type AppVars = { reqId: string };
@@ -38,6 +39,12 @@ app.onError((err, c) => {
   }));
 
   const status = (err as unknown as { status?: number }).status;
+  if (err instanceof ApiError) {
+    return c.json(
+      { success: false, code: err.code, message: err.message },
+      err.status as 400 | 401 | 403 | 404 | 409 | 422 | 429 | 500 | 503,
+    );
+  }
   if (status === 429) {
     return c.json({ success: false, code: "ai_rate_limit", message: "AI đang quá tải. Vui lòng thử lại sau." }, 429);
   }

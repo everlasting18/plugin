@@ -1,8 +1,14 @@
 import { Hono } from "hono";
-import { createAgentStream } from "../agents/orchestrator.ts";
-import { logger } from "../lib/logStore.ts";
+import type { AppRouteVars } from "./types.ts";
+import { expectRecord, getReqId, parseJsonBody } from "../lib/http.ts";
+import {
+  createGenerateResultStream,
+  logGenerateRequest,
+  parseGenerateInput,
+  validateGenerateRequest,
+} from "../usecases/generate.ts";
 
-const app = new Hono();
+const app = new Hono<{ Variables: AppRouteVars }>();
 
 /**
  * POST /api/generate
@@ -14,8 +20,9 @@ const app = new Hono();
  *   keyword     — chủ đề bài viết
  *   tone        — professional | friendly | persuasive | simple | storytelling
  *   count       — 1 | 2 | 3 (số bài viết cần tạo)
- *   audience    — general | professional | beginner | business
- *   framework   — app_pas | aida | pas | eeat_skyscraper | hero | listicle | howto | none
+ *   audience    — general | beginner | professional
+ *   language    — vi | en
+ *   framework   — auto | adaptive_hybrid | eeat_skyscraper | howto | pas | aida
  *   niche       — ngành/niche (tùy chọn)
  *
  * Response: text/plain stream
@@ -24,42 +31,15 @@ const app = new Hono();
  *   Error chunk:     [ERROR] error message
  */
 app.post("/", async (c) => {
-  // @ts-ignore: reqId injected by parent app middleware
-  const reqId = c.get("reqId") as string || "unknown";
-  const body = await c.req.json();
-  const {
-    keyword = "",
-    tone = "professional",
-    count = 1,
-    audience = "general",
-    framework = "none",
-    niche,
-  } = body;
+  const reqId = getReqId(c);
+  const auth = c.get("license");
+  const body = expectRecord(await parseJsonBody(c));
+  const input = parseGenerateInput(body);
 
-  logger.info("generate request started", {
-    reqId,
-    keyword,
-    tone,
-    count,
-    audience,
-    framework,
-    niche: niche || null,
-  });
+  logGenerateRequest(input, auth, reqId);
+  validateGenerateRequest(input, auth, reqId);
 
-  if (!keyword.trim()) {
-    logger.warn("generate request rejected — missing keyword", { reqId });
-    return c.json(
-      {
-        success: false,
-        code: "missing_keyword",
-        message: "Vui lòng nhập keyword hoặc chủ đề bài viết.",
-      },
-      400,
-    );
-  }
-
-  const input = { keyword, tone, count, audience, framework, niche };
-  const stream = createAgentStream(input, reqId);
+  const stream = createGenerateResultStream(input, auth, reqId);
 
   return c.body(stream, 200, {
     "Content-Type": "text/plain; charset=utf-8",

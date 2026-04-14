@@ -4,12 +4,10 @@ import rewriteApp from "./rewrite.ts";
 import metaApp from "./meta.ts";
 import logsApp from "./logs.ts";
 import licenseApp from "./license.ts";
-import { createLicenseMiddleware } from "../lib/license.ts";
-import { AuthContext } from "../lib/license.ts";
+import { createLicenseMiddleware } from "../lib/licenseMiddleware.ts";
+import type { AppRouteVars } from "./types.ts";
 
-type RouteVars = { reqId: string; license: AuthContext };
-
-const routes = new Hono<{ Variables: RouteVars }>();
+const routes = new Hono<{ Variables: AppRouteVars }>();
 
 // License endpoint — no middleware (needs to be callable without a key)
 routes.route("/license", licenseApp);

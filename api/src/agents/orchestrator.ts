@@ -1,35 +1,24 @@
-import { runResearchAgent, type ResearchData } from "./research.ts";
+import { runResearchAgent } from "./research.ts";
 import { runWriterAgent } from "./writer.ts";
 import { runRevisionLoop } from "./editor.ts";
+import { buildSkippedEditorReview, needsEditorialReview } from "./editorGate.ts";
+import { resolveFrameworkPlan } from "./frameworkStrategy.ts";
 import { logger } from "../lib/logger.ts";
-
-export interface OrchestratorInput {
-  keyword: string;
-  tone: string;
-  count: number;
-  audience: string;
-  framework: string;
-  niche?: string;
-}
-
-export interface OrchestratorOutput {
-  posts: PostResult[];
-  research: ResearchData;
-}
-
-interface PostResult {
-  content: string;
-  title: string;
-  revisionLoops: number;
-  editorReview: {
-    qualityScore: number;
-    seoScore: number;
-    engagementScore: number;
-    overallPass: boolean;
-    issues: { severity: string; location: string; issue: string; fix: string }[];
-    summary: string;
-  };
-}
+import {
+  DEFAULT_CONTENT_LANGUAGE,
+  DEFAULT_CONTENT_LENGTH,
+  DEFAULT_WEB_SEARCH,
+  normalizeAudience,
+  normalizeLanguage,
+} from "./contentConfig.ts";
+import type { OrchestratorInput, OrchestratorOutput, RevisionLoopResult } from "./types.ts";
+import {
+  buildContentPreview,
+  buildDonePayload,
+  buildPostResult,
+  buildResearchSummary,
+  clampPostCount,
+} from "./orchestratorUtils.ts";
 
 /**
  * Orchestrator — điều phối Research → Write → Editor × N posts.
@@ -40,15 +29,59 @@ export async function runOrchestrator(
   onChunk?: (text: string) => void,
   reqId?: string,
 ): Promise<OrchestratorOutput> {
-  const { keyword, tone, count, audience, framework, niche } = input;
-  const numPosts = Math.min(Math.max(count || 1, 1), 3);
+  const {
+    keyword,
+    tone,
+    count,
+    audience: rawAudience,
+    language: rawLanguage = DEFAULT_CONTENT_LANGUAGE,
+    framework,
+    niche,
+    length = DEFAULT_CONTENT_LENGTH,
+    webSearch = DEFAULT_WEB_SEARCH,
+  } = input;
+  const audience = normalizeAudience(String(rawAudience || ""));
+  const language = normalizeLanguage(String(rawLanguage || ""));
+  const numPosts = clampPostCount(count);
+  const frameworkPlan = resolveFrameworkPlan({
+    keyword,
+    requestedFramework: framework,
+    audience,
+    length,
+    niche,
+  });
+  const effectiveFramework = frameworkPlan.framework;
 
-  logger.info("orchestrator started", { reqId, keyword, numPosts });
+  logger.info("orchestrator started", {
+    reqId,
+    keyword,
+    numPosts,
+    length,
+    webSearch,
+    language,
+    requestedFramework: framework,
+    effectiveFramework,
+    frameworkSource: frameworkPlan.source,
+    frameworkIntent: frameworkPlan.intent,
+    frameworkMode: frameworkPlan.mode,
+  });
+  onChunk?.(
+    `[Planner] Framework ${effectiveFramework} (${frameworkPlan.source}) — ${frameworkPlan.reason}\n`,
+  );
 
   // ── Phase 1: Research (1 lần, chia sẻ cho tất cả bài) ───────────
   onChunk?.(`[Research] Đang tìm kiếm thông tin cho ${numPosts} bài...\n`);
   const researchStart = Date.now();
-  const research = await runResearchAgent(keyword, tone, audience, niche, onChunk);
+  const research = await runResearchAgent(
+    keyword,
+    tone,
+    audience,
+    language,
+    effectiveFramework,
+    niche,
+    webSearch,
+    onChunk,
+  );
   const researchMs = Date.now() - researchStart;
   onChunk?.(`[Research] Hoàn tất — ${research.stats.length} số liệu, ${research.caseStudies.length} case studies.\n\n`);
   logger.info("research phase completed", {
@@ -58,7 +91,7 @@ export async function runOrchestrator(
     caseStudiesCount: research.caseStudies.length,
   });
 
-  const posts: PostResult[] = [];
+  const posts: OrchestratorOutput["posts"] = [];
 
   for (let i = 1; i <= numPosts; i++) {
     onChunk?.(`\n${"=".repeat(50)}\n`);
@@ -69,56 +102,61 @@ export async function runOrchestrator(
     onChunk?.(`[Post ${i}/${numPosts}] [Writer] Đang viết content...\n`);
     logger.info(`writer draft[${i}/${numPosts}]`, { reqId, keyword });
     const { content: initialDraft, title: initialTitle } = await runWriterAgent(
-      keyword, tone, "medium", audience, framework, niche, research,
+      keyword, tone, length, audience, effectiveFramework, niche, research,
+      language,
+      frameworkPlan.strategyHint,
       undefined,
       onChunk,
     );
     onChunk?.(`[Post ${i}/${numPosts}] [Writer] Hoàn tất.\n`);
     logger.info(`writer draft[${i}/${numPosts}] done`, { reqId, title: initialTitle, draftChars: initialDraft.length });
 
-    // Editor + Revision Loop
-    const researchSummary = {
-      stats: research.stats,
-      caseStudies: research.caseStudies,
-      painPoints: research.painPoints,
-    };
+    const reviewGate = needsEditorialReview(initialDraft, length, effectiveFramework);
+    let finalResult: RevisionLoopResult;
 
-    logger.info(`editor review[${i}/${numPosts}]`, { reqId, keyword });
-    const finalResult = await runRevisionLoop(
-      initialDraft,
-      keyword, tone, audience, framework, "medium", niche,
-      researchSummary,
-      onChunk,
-      reqId,
-    );
-    logger.info(`editor review[${i}/${numPosts}] done`, {
-      reqId,
-      title: finalResult.title,
-      loops: finalResult.loops,
-      qualityScore: finalResult.review.qualityScore,
-      seoScore: finalResult.review.seoScore,
-      engagementScore: finalResult.review.engagementScore,
-      overallPass: finalResult.review.overallPass,
-      issuesCount: finalResult.review.issues.length,
-    });
+    if (reviewGate.shouldReview) {
+      // Editor + Revision Loop chỉ chạy khi draft fail structural checks
+      const researchSummary = buildResearchSummary(research);
 
-    const postMs = Date.now() - postStart;
-    posts.push({
-      content: finalResult.content,
-      title: finalResult.title || initialTitle,
-      revisionLoops: finalResult.loops,
-      editorReview: {
+      onChunk?.(`[Post ${i}/${numPosts}] [Editor Gate] Cần review AI: ${reviewGate.reasons.join(" ")}\n`);
+      logger.info(`editor review[${i}/${numPosts}]`, { reqId, keyword, reasons: reviewGate.reasons });
+      finalResult = await runRevisionLoop(
+        initialDraft,
+        keyword, tone, audience, effectiveFramework, length, niche,
+        researchSummary,
+        language,
+        frameworkPlan.strategyHint,
+        onChunk,
+        reqId,
+      );
+      logger.info(`editor review[${i}/${numPosts}] done`, {
+        reqId,
+        title: finalResult.title,
+        loops: finalResult.loops,
         qualityScore: finalResult.review.qualityScore,
         seoScore: finalResult.review.seoScore,
         engagementScore: finalResult.review.engagementScore,
         overallPass: finalResult.review.overallPass,
-        issues: finalResult.review.issues,
-        summary: finalResult.review.summary,
-      },
-    });
+        issuesCount: finalResult.review.issues.length,
+      });
+    } else {
+      onChunk?.(`[Post ${i}/${numPosts}] [Editor Gate] Bỏ qua review AI — draft đạt structural checks.\n`);
+      finalResult = {
+        content: initialDraft,
+        title: initialTitle,
+        loops: 0,
+        review: buildSkippedEditorReview(),
+      };
+      logger.info(`editor review[${i}/${numPosts}] skipped`, {
+        reqId,
+        keyword,
+      });
+    }
+
+    const postMs = Date.now() - postStart;
+    posts.push(buildPostResult(finalResult, initialTitle));
 
     onChunk?.(`[Post ${i}/${numPosts}] Xong ✓\n`);
-    const contentPreview = finalResult.content.replace(/<[^>]+>/g, "").trim().split(/\s+/).slice(0, 10).join(" ") + "...";
     logger.info("post completed", {
       reqId,
       postIndex: i,
@@ -130,7 +168,7 @@ export async function runOrchestrator(
       engagementScore: finalResult.review.engagementScore,
       overallPass: finalResult.review.overallPass,
       contentLength: finalResult.content.length,
-      content: contentPreview,
+      content: buildContentPreview(finalResult.content),
     });
   }
 
@@ -148,6 +186,7 @@ export async function runOrchestrator(
 export function createAgentStream(
   input: OrchestratorInput,
   reqId?: string,
+  onDone?: (result: OrchestratorOutput) => Promise<void> | void,
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
 
@@ -163,20 +202,9 @@ export function createAgentStream(
 
       try {
         const result = await runOrchestrator(input, send, reqId);
+        await onDone?.(result);
 
-        const final = JSON.stringify({
-          type: "done",
-          posts: result.posts.map(p => ({
-            content: p.content,
-            title: p.title,
-            revisionLoops: p.revisionLoops,
-            editorReview: p.editorReview,
-          })),
-          researchSummary: {
-            statsCount: result.research.stats.length,
-            caseStudiesCount: result.research.caseStudies.length,
-          },
-        });
+        const final = JSON.stringify(buildDonePayload(result));
         send(`[DONE] ${final}\n`);
         controller.close();
       } catch (err) {
