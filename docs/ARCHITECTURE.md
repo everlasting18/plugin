@@ -1,365 +1,460 @@
 # ContentAI Architecture
 
-## Scope
+## Mục tiêu tài liệu
 
-This document describes the project as it exists in the repository today.
-It is based on the current code, not on older notes that still mention removed admin apps or older framework lists.
+Tài liệu này mô tả kiến trúc hiện tại của project ở mốc V1.
+Nó phản ánh code đang có trong repo, không phản ánh các flow cũ đã bị xóa như admin React cũ trong plugin hay frontend Astro SSR.
 
-The repository root is the WordPress install:
+## Tổng quan hệ thống
 
-- `api/`: Deno + Hono backend for AI generation, licensing, quota, and logs
-- `frontend/`: Astro marketing site, login flow, dashboard, and plugin download packaging
-- `wp-content/plugins/contentai-plugin/`: WordPress plugin used inside wp-admin and Gutenberg
+Repository này thực chất là một WordPress install, bên trong có 3 khối chính:
 
-## System Map
+- `api/`
+  Backend Deno + Hono cho AI generation, license, quota, logs và integration với OpenRouter/Tavily/PocketBase.
+
+- `frontend/`
+  Site Astro tĩnh cho landing page, login, dashboard và phát hành file plugin zip.
+
+- `wp-content/plugins/contentai-plugin/`
+  Plugin WordPress chạy trong wp-admin, Gutenberg và calendar.
+
+### Tư duy kiến trúc
+
+Hệ thống được chia rõ thành 4 lớp trách nhiệm:
+
+- Account layer
+  Người dùng đăng nhập bằng PocketBase.
+
+- Ownership layer
+  User nào sở hữu website nào được lưu ở `user_domains`.
+
+- Entitlement layer
+  License key hợp lệ hay không, site nào được gắn Pro, hạn dùng đến đâu được quyết định ở backend API qua `licenses`.
+
+- Usage layer
+  Free quota theo website, theo tháng được lưu ở `usage`.
+
+## System map
 
 ### 1. API backend
 
 Location: `api/src`
 
-Responsibilities:
+Vai trò:
 
-- Expose `/api/generate`, `/api/rewrite`, `/api/meta`, `/api/license/*`, `/api/logs`
-- Enforce license and free-tier quota before content routes
-- Run the content pipeline: research, planning, writing, editorial review
-- Call OpenRouter for LLM work
-- Call Tavily for web search when research is enabled
-- Persist license and usage data via PocketBase or JSON fallback
+- expose `/api/generate`, `/api/rewrite`, `/api/meta`
+- expose `/api/license/*`
+- enforce auth, site binding và quota
+- chạy pipeline AI: research -> writer -> editor
+- gọi OpenRouter cho LLM
+- gọi Tavily cho web research
+- đọc/ghi license và usage qua PocketBase hoặc JSON fallback
 
-Main entry points:
+Entry points:
 
-- `main.ts`: app bootstrap, CORS, request id, error handling
-- `routes/mod.ts`: route registration and middleware order
-- `lib/license.ts`: license verification, free quota tracking, middleware
-- `agents/orchestrator.ts`: top-level generation pipeline
+- `api/src/main.ts`
+- `api/src/routes/mod.ts`
 
-### 2. WordPress plugin
-
-Location: `wp-content/plugins/contentai-plugin`
-
-Responsibilities:
-
-- Add WordPress admin pages: Dashboard, Calendar, Settings
-- Inject the ContentAI panel into Gutenberg
-- Pass `window.contentaiData` to JS with API URL, site URL, license key, and quota snapshot
-- Expose internal WordPress REST and AJAX endpoints for drafts, categories, and scheduling
-- Build and ship the editor and calendar frontend bundles
-
-Current JS apps in the plugin:
-
-- `src/editor/`: Gutenberg plugin UI
-- `src/calendar/`: calendar and scheduling UI
-- `src/lib/api.js`: API client for the Deno backend
-- `src/lib/blocks.js`: normalization helpers for Gutenberg block insertion
-
-Main PHP entry point:
-
-- `contentai.php`
-
-### 3. Astro frontend
+### 2. Frontend Astro
 
 Location: `frontend/src`
 
-Responsibilities:
+Vai trò:
 
-- Public landing page
-- Google login via PocketBase client SDK
-- Dashboard for domain list and license-related UX
-- Plugin download endpoint and packaging support
+- landing page công khai
+- login bằng PocketBase client SDK
+- dashboard quản lý domain và license
+- phát file `plugin.zip` trực tiếp từ static site
 
-Important pages:
+Lưu ý quan trọng:
 
-- `pages/index.astro`: landing page
-- `pages/login.astro`: login page
-- `pages/dashboard.astro`: account and domain dashboard
-- `pages/auth/callback.astro`: PocketBase OAuth callback
+- frontend hiện là `static`, không còn SSR
+- không còn route server `/api/download`
+- nút download trỏ trực tiếp tới `frontend/public/plugin.zip`
 
-## Runtime Boundaries
+Entry points:
 
-### Boundary A: WordPress plugin -> API backend
+- `frontend/src/pages/index.astro`
+- `frontend/src/pages/login.astro`
+- `frontend/src/pages/dashboard.astro`
+- `frontend/src/pages/auth/callback.astro`
 
-This is the primary production flow for content generation.
+### 3. WordPress plugin
 
-The plugin calls the backend directly with:
+Location: `wp-content/plugins/contentai-plugin`
 
-- `x-license-key`
+Vai trò:
+
+- inject panel vào Gutenberg
+- gọi API backend để generate/rewrite/meta
+- làm lịch bài viết và schedule post
+- nối dữ liệu WordPress với backend ContentAI
+
+Entry point:
+
+- `wp-content/plugins/contentai-plugin/contentai.php`
+
+JS apps chính:
+
+- `src/editor/`
+- `src/calendar/`
+- `src/lib/api.js`
+- `src/lib/blocks.js`
+
+## Storage model
+
+### PocketBase collections
+
+PocketBase hiện nên có 4 collection chính:
+
+#### `users`
+
+- auth collection mặc định của PocketBase
+- dùng cho login dashboard/frontend
+
+#### `user_domains`
+
+Vai trò:
+
+- user nào sở hữu website nào
+- website nào đang active trên dashboard
+- website nào đang gắn license key nào
+
+Field chính:
+
+- `user` relation -> `users`
+- `domain`
+- `tier`
+- `license_key`
+- `is_active`
+
+#### `licenses`
+
+Vai trò:
+
+- nguồn entitlement thật cho Pro
+- backend verify license theo `key + site_url`
+
+Field chính:
+
+- `key`
+- `tier`
+- `status`
+- `site_url`
+- `expires`
+- `activated_at`
+
+#### `usage`
+
+Vai trò:
+
+- quota free theo website và theo tháng
+
+Field chính:
+
+- `domain_id`
+- `month`
+- `count`
+
+### Vì sao `usage.month` là text
+
+- `month` là key của kỳ quota, không phải thời điểm cụ thể
+- ví dụ: `2026_04`
+- lookup đơn giản hơn timestamp range
+- unique index `(domain_id, month)` dễ hiểu và dễ debug
+
+### Vì sao `licenses.expires` là number
+
+- `expires` và `activated_at` là mốc thời gian cụ thể
+- backend so trực tiếp với `Date.now()`
+- không phải bucket thời gian như `month`
+
+## Runtime boundaries
+
+### Boundary A: Frontend -> PocketBase
+
+Frontend dùng PocketBase client SDK để:
+
+- đăng nhập Google
+- giữ auth store ở browser
+- đọc/ghi `user_domains`
+
+Frontend không phải source of truth cho entitlement.
+Nó chỉ giữ ownership và UI state.
+
+### Boundary B: Frontend -> API backend
+
+Frontend gọi API backend cho:
+
+- `POST /api/license/verify`
+- `POST /api/license/check`
+- `POST /api/license/usage`
+- `POST /api/license/status`
+
+Backend mới là nơi quyết định:
+
+- site này đang Free hay Pro thật
+- license key có hợp lệ không
+- quota còn bao nhiêu
+
+### Boundary C: Plugin -> API backend
+
+Đây là flow production chính.
+
+Plugin gọi backend với:
+
 - `x-site-url`
-- JSON body including `keyword`, `count`, `audience`, `language`, `framework`, `length`, `webSearch`
+- `x-license-key` nếu có
 
-The backend is the source of truth for:
+Backend xác thực request trước khi cho generate.
 
-- whether generation is allowed
-- free quota remaining
-- actual number of posts consumed by a request
-- final generated content
+### Boundary D: Plugin -> WordPress
 
-### Boundary B: Astro frontend -> PocketBase + API backend
-
-The public site uses PocketBase client auth in the browser and also calls the API backend for `/license/verify` and `/license/usage`.
-
-This means the Astro app is not only a presentation layer. It coordinates two different backends:
-
-- PocketBase for user-facing domain records and auth
-- Deno API for license verification and usage numbers
-
-### Boundary C: WordPress plugin -> WordPress data layer
-
-The calendar and editor work with WordPress-native data:
+Plugin vẫn dùng dữ liệu native của WordPress cho:
 
 - posts
 - categories
-- scheduling
+- scheduled posts
 - admin pages
 
-Those flows use a mix of:
+## Backend architecture
 
-- WP REST routes under `contentai/v1/*`
-- AJAX fallbacks under `admin-ajax.php`
+Backend hiện theo hướng:
 
-## External Services
+- `routes`
+- `middleware`
+- `usecases`
+- `services`
+- `agents`
+- `storage`
 
-- OpenRouter: LLM inference
-- Tavily: web search for research
-- PocketBase: optional production storage for licenses and usage, plus website auth/domain data
+### Route layer
 
-Key env vars for the API:
+Location: `api/src/routes`
 
-- `OPENROUTER_API_KEY`
-- `OPENROUTER_BASE_URL`
-- `OPENROUTER_MODEL`
-- `OPENROUTER_MODEL_FALLBACK`
-- `TAVILY_API_KEY`
-- `PB_URL`
-- `PB_ADMIN_TOKEN`
+Nhiệm vụ:
 
-## Content Generation Flow
+- parse request
+- gọi usecase
+- trả response
 
-### 1. Request entry
+### Middleware layer
 
-`POST /api/generate`
+Location: `api/src/lib/licenseMiddleware.ts`
 
-Handled by:
+Nhiệm vụ:
 
-- `routes/generate.ts`
-- `lib/license.ts`
+- đọc `x-license-key`
+- đọc `x-site-url`
+- verify auth/quota trước các route content
 
-The route normalizes defaults from `agents/contentConfig.ts`, validates the keyword, and checks whether the requested post count exceeds the free quota remaining.
+### Usecase layer
 
-### 2. License gate
+Location: `api/src/usecases`
 
-The parent router applies `createLicenseMiddleware()` to content routes.
+Nhiệm vụ:
 
-Two paths exist:
+- validate business input
+- gọi service hoặc orchestration phù hợp
 
-- Pro path: verify `x-license-key`
-- Free path: use `x-site-url` and current month usage
+Usecase hiện có:
 
-If the request is allowed, middleware stores an auth context on the request.
+- `generate.ts`
+- `rewrite.ts`
+- `meta.ts`
+- `license.ts`
 
-### 3. Orchestration
+### Service layer
 
-`agents/orchestrator.ts` coordinates:
+Các file chính:
 
-1. framework planning via `frameworkStrategy.ts`
-2. research via `research.ts`
-3. writing via `writer.ts`
-4. editor gate and optional revision via `editorGate.ts` and `editor.ts`
+- `api/src/lib/licenseService.ts`
+- `api/src/services/openrouter.ts`
+- `api/src/tools/search.ts`
 
-The orchestrator streams progress lines and finally emits `[DONE] { ... }`.
+Nhiệm vụ:
 
-### 4. Research
+- xử lý business logic dùng chung
+- gọi external providers
+- làm cache và normalization
 
-`agents/research.ts`:
+### Storage layer
 
-- builds search queries with `researchQueries.ts`
-- calls Tavily through `tools/search.ts`
-- dedupes and caps results
-- asks the model to summarize findings into structured research data
+Location:
 
-If web search is disabled or no usable results are found, research falls back to a minimal structure rather than failing the request.
+- `api/src/lib/licenseStorage.ts`
 
-### 5. Writing
+Nhiệm vụ:
 
-`agents/writer.ts`:
+- đọc/ghi PocketBase
+- fallback về JSON khi thiếu env
 
-- builds a writer prompt from research, language, framework, and strategy hint
-- requests Gutenberg-compatible HTML blocks
-- applies a cleanup pass for newline artifacts
+### Agent layer
 
-The current public writing modes are:
+Location:
 
-- `auto`
-- `adaptive_hybrid`
-- `eeat_skyscraper`
-- `howto`
-- `pas`
-- `aida`
+- `api/src/agents`
 
-### 6. Editorial review
+Nhiệm vụ:
 
-`agents/editorGate.ts` runs cheap structural checks first.
+- implement pipeline AI
 
-If the draft fails those checks:
+Các module chính:
 
-- `editor.ts` runs a review model call
-- a single rewrite attempt is allowed
-- a final editorial review runs after rewrite
+- `frameworkStrategy.ts`
+- `research.ts`
+- `writer.ts`
+- `editorGate.ts`
+- `editor.ts`
+- `orchestrator.ts`
 
-If the draft passes the gate, the expensive editor path is skipped.
+## Frontend architecture
 
-### 7. Free-tier usage increment
+Frontend hiện là Astro static + client-side PocketBase.
 
-Usage is now incremented after generation completes, based on the number of posts actually returned by the orchestrator.
+### Pages
 
-That behavior lives in `routes/generate.ts`, not in the middleware.
+- `index.astro`
+  landing page
 
-## License and Quota Architecture
+- `login.astro`
+  login bằng Google OAuth qua PocketBase SDK
 
-### Storage modes
+- `dashboard.astro`
+  UI quản lý domain, status, quota và plugin download
 
-The API supports two storage modes:
+- `auth/callback.astro`
+  callback page sau OAuth
 
-- PocketBase mode when `PB_URL` and `PB_ADMIN_TOKEN` are configured
-- JSON fallback mode using `api/src/licenses.json` and `api/src/usage.json`
+### Shared frontend libs
 
-### API routes
+- `src/lib/runtime.ts`
+  gom runtime config như `PUBLIC_PB_URL`, `PUBLIC_API_URL`
 
-- `POST /api/license/verify`: activate and verify a key against a site URL
-- `POST /api/license/check`: verify without activation
-- `POST /api/license/usage`: read usage for a domain
+- `src/lib/pocketbase.ts`
+  helper tạo PocketBase client và sync auth cookie
 
-### Source of truth
+- `src/lib/dashboard.ts`
+  logic dashboard: load domains, fetch status, add/delete domain, render usage
 
-The API backend is the source of truth for:
+### Static output
 
-- license validity
-- tier
-- monthly usage counts
-- remaining free quota
+Frontend đang build `static`, nên output cuối sẽ là:
 
-WordPress and Astro both cache or mirror parts of this state for UI convenience.
+- HTML tĩnh
+- CSS/JS assets
+- file `plugin.zip`
 
-## WordPress Plugin Architecture
+Không còn Node server Astro để chạy runtime route.
 
-### Admin pages
+## Plugin architecture
 
-The current plugin pages are:
+### PHP layer
 
-- `ContentAI > Dashboard`
-- `ContentAI > Lịch nội dung`
-- `ContentAI > Cài đặt`
+File chính: `contentai.php`
 
-Legacy slugs like `contentai-write` and `contentai-history` are redirected, not rendered by dedicated React apps anymore.
+Nhiệm vụ:
 
-### Gutenberg editor integration
+- đăng ký menu admin
+- enqueue asset
+- inject config vào JS
+- expose REST/AJAX route nội bộ cho WordPress
 
-`src/editor/index.jsx` registers the plugin.
+### Editor app
 
-`src/editor/App.jsx` mounts:
+Location: `src/editor`
 
-- top bar toggle
-- left panel
-- floating toolbar for rewrite actions
+Nhiệm vụ:
 
-The left panel is the main generate UI:
+- panel generate trong Gutenberg
+- floating toolbar rewrite
+- insert block vào editor
 
-- prompt entry
-- generation settings
-- progress stream
-- result cards
-- block insertion
+### Calendar app
 
-### Calendar
+Location: `src/calendar`
 
-`src/calendar/CalendarApp.jsx` loads:
+Nhiệm vụ:
 
-- draft posts
-- scheduled and published posts for the current month
-- categories
+- content calendar
+- schedule post
+- timezone handling cho publish time
 
-It prefers WP REST routes, then falls back to AJAX for environments where REST is blocked.
+### API bridge
 
-Scheduling itself currently uses the AJAX endpoint directly.
+Location: `src/lib/api.js`
 
-## Astro Frontend Architecture
+Nhiệm vụ:
 
-### Public site
+- gọi backend Deno API
+- stream generate result
+- gọi rewrite/meta
 
-The Astro site handles:
+## Source of truth
 
-- marketing copy
-- authentication entry
-- account dashboard
-- plugin ZIP download
+### Source of truth thực tế
 
-### Auth model
+- user auth: PocketBase `users`
+- domain ownership: PocketBase `user_domains`
+- license validity: backend API qua `licenses`
+- free quota: backend API qua `usage`
+- generated content: backend orchestrator output
 
-The frontend currently uses PocketBase client auth in the browser.
+### Chỗ chỉ là mirror/UI convenience
 
-That auth state is separate from:
+- `user_domains.tier`
+  không phải nguồn entitlement cuối cùng
 
-- WordPress authentication
-- Deno API license authentication
+- quota snapshot được inject vào plugin
+  chỉ để hiển thị nhanh, backend vẫn là nguồn quyết định cuối
 
-### Dashboard model
-
-`pages/dashboard.astro` reads domain records from PocketBase `user_domains`, then reads usage counts from `POST /api/license/usage`.
-
-As a result, the dashboard is an integration layer between:
-
-- PocketBase user/domain records
-- API quota and license state
-
-## Build and Release
+## Build and deploy model
 
 ### API
 
-Managed with Deno tasks:
+- chạy bằng Deno
+- có thể deploy riêng
+- dùng env thật cho OpenRouter, Tavily, PocketBase
 
-- `deno task dev`
-- `deno task start`
+### Frontend
+
+- build static bằng Astro
+- chỉ cần host file tĩnh
 
 ### Plugin
 
-Managed with Vite:
+- build asset bằng Vite
+- zip plugin để phát hành
 
-- `npm run build` in `wp-content/plugins/contentai-plugin`
+## V1 product model
 
-Outputs:
+### Free
 
-- `dist/editor.js`
-- `dist/calendar.js`
-- related CSS and chunks
+- user login
+- thêm website
+- không cần license key
+- plugin gửi `x-site-url`
+- backend check quota theo `usage`
 
-### Plugin ZIP
+### Pro demo
 
-`frontend/scripts/build-plugin.mjs` packages the plugin into `frontend/public/plugin.zip`.
+- user thêm website + nhập license key
+- frontend gọi `/api/license/verify`
+- backend bind key với website
+- plugin gửi `x-site-url + x-license-key`
+- backend verify entitlement và bỏ qua quota free
 
-That script currently assumes a local absolute path to the WordPress plugin directory.
+## V2 direction
 
-## Current Sources of Truth
+V2 không đổi kiến trúc lõi.
+Nó chỉ thêm billing layer qua Stripe.
 
-Use this table when deciding where a change should live.
+Giữ nguyên:
 
-| Concern | Current source of truth |
-| --- | --- |
-| License validity | API backend |
-| Free quota count | API backend |
-| Generated content | API backend |
-| WordPress post data | WordPress |
-| Calendar scheduling state | WordPress |
-| Public-site login session | PocketBase browser auth |
-| Dashboard domain list | PocketBase `user_domains` |
-| Plugin runtime config | `window.contentaiData` injected by PHP |
+- plugin vẫn là client
+- backend vẫn là entitlement source
+- `licenses` vẫn là lớp quyết định Pro
 
-## Known Architectural Tension
+Xem thêm:
 
-The system works, but it is not a single-backend design.
-
-There are three partially overlapping state systems:
-
-- WordPress options and admin pages
-- API license and usage storage
-- PocketBase user-facing account/domain data
-
-That split is the main reason architectural clarity matters in this repository.
+- `docs/V2_STRIPE_BILLING.md`
