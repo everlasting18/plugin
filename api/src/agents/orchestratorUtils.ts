@@ -54,5 +54,5 @@ export function buildDonePayload(result: OrchestratorOutput) {
 }
 
 export function buildContentPreview(content: string): string {
-  return content.replace(/<[^>]+>/g, "").trim().split(/\s+/).slice(0, 10).join(" ") + "...";
+  return content.replace(/<[^>]+>/g, " ").trim().split(/\s+/).slice(0, 10).join(" ") + "...";
 }
