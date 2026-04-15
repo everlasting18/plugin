@@ -1,13 +1,18 @@
-// Use API URL from WordPress (falls back to localhost for dev)
-const API_URL = (typeof window !== 'undefined' && window.contentaiData && window.contentaiData.apiUrl)
-  || 'http://localhost:3000/api';
-
 class APIError extends Error {
   constructor(message, code, status) {
     super(message);
     this.code = code;
     this.status = status;
   }
+}
+
+function getApiUrl() {
+  const configured = typeof window !== 'undefined' && window.contentaiData && window.contentaiData.apiUrl;
+  if (configured) return configured;
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return 'http://localhost:3000/api';
+  }
+  throw new APIError('Plugin chưa được cấu hình API URL.', 'api_url_missing', 500);
 }
 
 function getLicenseHeaders() {
@@ -20,7 +25,8 @@ function getLicenseHeaders() {
 }
 
 async function request(endpoint, options = {}) {
-  const url = `${API_URL}/${endpoint}`;
+  const apiUrl = getApiUrl();
+  const url = `${apiUrl}/${endpoint}`;
   const method = options.method || 'POST';
   const licenseHeaders = getLicenseHeaders();
 
@@ -94,8 +100,9 @@ async function collectGenerateResult(body, onProgress) {
 export const api = {
   generate:  (body) => collectGenerateResult(body),
   generateStream: async function* (body) {
+    const apiUrl = getApiUrl();
     const licenseHeaders = getLicenseHeaders();
-    const res = await fetch(`${API_URL}/generate`, {
+    const res = await fetch(`${apiUrl}/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

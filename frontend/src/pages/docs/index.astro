@@ -1,0 +1,566 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+---
+
+<Layout title="Tài liệu sử dụng - ContentAI" description="Hướng dẫn sử dụng ContentAI cho người dùng WordPress: đăng nhập, thêm website, cài plugin, generate, rewrite và schedule bài viết.">
+  <Header />
+
+  <section class="docs-hero">
+    <div class="container">
+      <div class="docs-hero-card">
+        <div class="docs-kicker">User Docs</div>
+        <h1>Bắt đầu dùng ContentAI trên WordPress từ lúc đăng nhập đến lúc xuất bản.</h1>
+        <p>
+          Đây là tài liệu dành cho người dùng cuối. Bạn sẽ đi qua đầy đủ các bước: thêm website,
+          cài plugin, generate bài viết, rewrite trong Gutenberg và lên lịch nội dung.
+        </p>
+        <div class="docs-feature-strip">
+          <span>Generate bài viết</span>
+          <span>Rewrite trong Gutenberg</span>
+          <span>Calendar và schedule</span>
+        </div>
+        <div class="docs-hero-actions">
+          <a href="#quickstart" class="btn btn-primary">Bắt đầu nhanh</a>
+          <a href="/plugin.zip" class="btn btn-secondary" download>Tải plugin zip</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="docs-shell">
+    <div class="container docs-grid">
+      <aside class="docs-sidebar">
+        <div class="docs-nav-card">
+          <div class="docs-nav-title">Mục lục</div>
+          <nav class="docs-nav">
+            <a href="#quickstart" data-doc-link="quickstart">Bắt đầu nhanh</a>
+            <a href="#login" data-doc-link="login">Đăng nhập</a>
+            <a href="#dashboard" data-doc-link="dashboard">Dashboard</a>
+            <a href="#add-site" data-doc-link="add-site">Thêm website</a>
+            <a href="#install-plugin" data-doc-link="install-plugin">Cài plugin</a>
+            <a href="#generate" data-doc-link="generate">Tạo bài viết</a>
+            <a href="#rewrite" data-doc-link="rewrite">Rewrite</a>
+            <a href="#calendar" data-doc-link="calendar">Calendar</a>
+            <a href="#free-vs-pro" data-doc-link="free-vs-pro">Free và Pro</a>
+            <a href="#troubleshooting" data-doc-link="troubleshooting">Lỗi thường gặp</a>
+          </nav>
+        </div>
+      </aside>
+
+      <main class="docs-content">
+        <section id="quickstart" class="docs-section">
+          <div class="section-kicker">Quickstart</div>
+          <h2>Bắt đầu trong 7 bước</h2>
+          <div class="step-grid">
+            <article class="doc-step">
+              <span>1</span>
+              <div>
+                <h3>Đăng nhập Google</h3>
+                <p>Vào ContentAI và đăng nhập bằng tài khoản Google của bạn.</p>
+              </div>
+            </article>
+            <article class="doc-step">
+              <span>2</span>
+              <div>
+                <h3>Thêm website</h3>
+                <p>Vào dashboard và thêm domain WordPress bạn muốn dùng.</p>
+              </div>
+            </article>
+            <article class="doc-step">
+              <span>3</span>
+              <div>
+                <h3>Nhập license nếu có</h3>
+                <p>Nếu bạn có Pro, nhập license key ngay khi thêm website.</p>
+              </div>
+            </article>
+            <article class="doc-step">
+              <span>4</span>
+              <div>
+                <h3>Tải plugin</h3>
+                <p>Tải file <code>contentai-plugin.zip</code> từ dashboard hoặc từ trang này.</p>
+              </div>
+            </article>
+            <article class="doc-step">
+              <span>5</span>
+              <div>
+                <h3>Cài vào WordPress</h3>
+                <p>Upload plugin zip trong trang Plugins của WordPress rồi Activate.</p>
+              </div>
+            </article>
+            <article class="doc-step">
+              <span>6</span>
+              <div>
+                <h3>Kết nối đúng domain</h3>
+                <p>Đảm bảo domain trong plugin khớp với domain bạn đã thêm ở dashboard.</p>
+              </div>
+            </article>
+            <article class="doc-step">
+              <span>7</span>
+              <div>
+                <h3>Mở Gutenberg và viết</h3>
+                <p>Tạo bài mới, mở panel ContentAI và bắt đầu generate hoặc rewrite.</p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="login" class="docs-section">
+          <div class="section-kicker">Access</div>
+          <h2>Đăng nhập</h2>
+          <p>
+            ContentAI hiện dùng Google login. Khi đăng nhập thành công, hệ thống sẽ tự tạo hoặc nối tài khoản
+            của bạn trong PocketBase rồi chuyển bạn sang dashboard.
+          </p>
+          <div class="docs-note">
+            <strong>Lưu ý:</strong> Bạn không cần tạo tài khoản thủ công trước khi đăng nhập.
+          </div>
+        </section>
+
+        <section id="dashboard" class="docs-section">
+          <div class="section-kicker">Dashboard</div>
+          <h2>Dashboard dùng để làm gì</h2>
+          <ul class="docs-list">
+            <li>Xem thông tin tài khoản hiện tại.</li>
+            <li>Quản lý danh sách website WordPress.</li>
+            <li>Xem website đang là Free hay Pro.</li>
+            <li>Theo dõi quota miễn phí còn lại của từng website.</li>
+            <li>Tải plugin zip để cài vào WordPress.</li>
+          </ul>
+        </section>
+
+        <section id="add-site" class="docs-section">
+          <div class="section-kicker">Website</div>
+          <h2>Thêm website đúng cách</h2>
+          <p>
+            Hãy nhập đúng domain gốc của website, ví dụ <code>https://example.com</code>.
+            Không nên nhập URL bài viết con như <code>https://example.com/post/demo</code>.
+          </p>
+          <div class="docs-two-col">
+            <article class="docs-card">
+              <h3>Bản Free</h3>
+              <p>Chỉ cần nhập domain và để trống ô license key.</p>
+            </article>
+            <article class="docs-card">
+              <h3>Bản Pro</h3>
+              <p>Nhập domain và license key hợp lệ để website được kích hoạt Pro.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="install-plugin" class="docs-section">
+          <div class="section-kicker">Plugin</div>
+          <h2>Cài plugin vào WordPress</h2>
+          <ol class="docs-ordered">
+            <li>Tải file <code>contentai-plugin.zip</code>.</li>
+            <li>Vào WordPress Admin → Plugins → Add New → Upload Plugin.</li>
+            <li>Chọn file zip và bấm Install.</li>
+            <li>Activate plugin.</li>
+            <li>Vào phần settings của plugin và nhập domain, license key nếu có.</li>
+          </ol>
+          <div class="docs-note">
+            <strong>Quan trọng:</strong> Domain trong plugin nên trùng chính xác với domain bạn đã thêm ở dashboard.
+          </div>
+        </section>
+
+        <section id="generate" class="docs-section">
+          <div class="section-kicker">Generate</div>
+          <h2>Tạo bài viết trong Gutenberg</h2>
+          <ol class="docs-ordered">
+            <li>Mở bài viết mới hoặc bài viết đang soạn trong Gutenberg.</li>
+            <li>Mở panel ContentAI.</li>
+            <li>Nhập keyword.</li>
+            <li>Chọn số bài cần tạo và các thiết lập liên quan.</li>
+            <li>Bấm tạo.</li>
+          </ol>
+          <p>
+            Hệ thống sẽ tự research, viết draft và review lại trước khi trả kết quả về editor.
+            Sau đó bạn có thể chèn nội dung vào bài viết hoặc tiếp tục chỉnh tay.
+          </p>
+        </section>
+
+        <section id="rewrite" class="docs-section">
+          <div class="section-kicker">Rewrite</div>
+          <h2>Rewrite đoạn văn ngay trong Gutenberg</h2>
+          <p>
+            Khi đang ở Gutenberg, bạn có thể bôi chọn một đoạn văn rồi dùng floating toolbar của ContentAI để rewrite.
+          </p>
+          <div class="docs-note">
+            <strong>Đây là tính năng đang có trong plugin.</strong> Bạn không cần rời editor để viết lại một đoạn nội dung.
+          </div>
+          <ul class="docs-list">
+            <li>Dùng khi muốn viết lại cho gọn hơn.</li>
+            <li>Dùng khi muốn thay đổi cách diễn đạt.</li>
+            <li>Dùng khi muốn chỉnh lại đoạn cứng hoặc khó đọc.</li>
+          </ul>
+        </section>
+
+        <section id="calendar" class="docs-section">
+          <div class="section-kicker">Calendar</div>
+          <h2>Lên lịch bài viết</h2>
+          <p>
+            Plugin có calendar riêng để bạn theo dõi bài viết và chọn ngày giờ đăng. Sau khi schedule,
+            hãy kiểm tra lại giờ publish trong WordPress để chắc timezone của site đang đúng.
+          </p>
+        </section>
+
+        <section id="free-vs-pro" class="docs-section">
+          <div class="section-kicker">Plan</div>
+          <h2>Free và Pro khác nhau thế nào</h2>
+          <div class="docs-two-col">
+            <article class="docs-card">
+              <h3>Free</h3>
+              <ul class="docs-list compact">
+                <li>Không cần license key.</li>
+                <li>Mỗi website có quota riêng theo tháng.</li>
+                <li>Phù hợp để thử sản phẩm và chạy site nhỏ.</li>
+              </ul>
+            </article>
+            <article class="docs-card">
+              <h3>Pro</h3>
+              <ul class="docs-list compact">
+                <li>Cần license key hợp lệ.</li>
+                <li>Website phải được bind đúng với key.</li>
+                <li>Không dùng quota miễn phí theo tháng.</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section id="troubleshooting" class="docs-section">
+          <div class="section-kicker">Support</div>
+          <h2>Lỗi thường gặp</h2>
+          <div class="trouble-grid">
+            <article class="trouble-card">
+              <h3>Không thêm được website</h3>
+              <p>Thường do domain sai định dạng hoặc đã tồn tại trong tài khoản.</p>
+            </article>
+            <article class="trouble-card">
+              <h3>License key không hợp lệ</h3>
+              <p>Kiểm tra lại key, domain hoặc trạng thái hiệu lực của key.</p>
+            </article>
+            <article class="trouble-card">
+              <h3>Generate bị chặn</h3>
+              <p>Kiểm tra domain trong plugin, quota website hoặc license key hiện tại.</p>
+            </article>
+            <article class="trouble-card">
+              <h3>Giờ schedule bị lệch</h3>
+              <p>Kiểm tra timezone trong WordPress và xác nhận lại giờ publish.</p>
+            </article>
+          </div>
+          <div class="docs-note">
+            Nếu bạn cần bản hướng dẫn chi tiết hơn cho team nội bộ, xem thêm các file trong thư mục <code>docs/</code> của repo.
+          </div>
+        </section>
+      </main>
+    </div>
+  </section>
+
+  <Footer />
+</Layout>
+
+<script>
+  const docLinks = Array.from(document.querySelectorAll('[data-doc-link]')) as HTMLAnchorElement[];
+  const docSections = Array.from(document.querySelectorAll('.docs-section')) as HTMLElement[];
+
+  function setActiveSection(id: string) {
+    docLinks.forEach((link) => {
+      link.classList.toggle('active', link.dataset.docLink === id);
+    });
+  }
+
+  if (docLinks.length && docSections.length) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+        if (visible?.target instanceof HTMLElement) {
+          setActiveSection(visible.target.id);
+        }
+      },
+      {
+        rootMargin: '-20% 0px -55% 0px',
+        threshold: [0.2, 0.45, 0.7],
+      },
+    );
+
+    docSections.forEach((section) => observer.observe(section));
+
+    const hash = window.location.hash.replace('#', '');
+    if (hash) {
+      setActiveSection(hash);
+    } else if (docSections[0]) {
+      setActiveSection(docSections[0].id);
+    }
+  }
+</script>
+
+<style>
+  .docs-hero {
+    padding: 42px 0 22px;
+  }
+
+  .docs-hero-card {
+    padding: 40px;
+    border-radius: 36px;
+    background:
+      radial-gradient(circle at right top, rgb(219 122 57 / 0.18), transparent 24%),
+      linear-gradient(135deg, rgb(21 33 27 / 0.96) 0%, rgb(15 118 110 / 0.9) 100%);
+    color: #fff8ef;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .docs-kicker {
+    display: inline-flex;
+    margin-bottom: 16px;
+    padding: 9px 13px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.12);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .docs-hero-card h1 {
+    font-size: clamp(2.4rem, 5vw, 4.2rem);
+    line-height: 0.96;
+    max-width: 12ch;
+    margin-bottom: 14px;
+    color: #fff8ef;
+  }
+
+  .docs-hero-card p {
+    max-width: 58ch;
+    color: rgb(255 248 239 / 0.8);
+    font-size: 17px;
+  }
+
+  .docs-feature-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 22px;
+  }
+
+  .docs-feature-strip span {
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.12);
+    color: #fff8ef;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .docs-hero-actions {
+    display: flex;
+    gap: 14px;
+    margin-top: 26px;
+    flex-wrap: wrap;
+  }
+
+  .docs-shell {
+    padding: 28px 0 90px;
+  }
+
+  .docs-grid {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+  }
+
+  .docs-sidebar {
+    position: sticky;
+    top: 108px;
+  }
+
+  .docs-nav-card {
+    padding: 22px;
+    border-radius: 28px;
+    background: rgb(255 255 255 / 0.74);
+    border: 1px solid rgb(21 33 27 / 0.08);
+    box-shadow: var(--shadow);
+  }
+
+  .docs-nav-title {
+    font-size: 14px;
+    font-weight: 800;
+    margin-bottom: 14px;
+    color: var(--ink-950);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .docs-nav {
+    display: grid;
+    gap: 8px;
+  }
+
+  .docs-nav a {
+    padding: 10px 12px;
+    border-radius: 14px;
+    color: var(--ink-800);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .docs-nav a:hover {
+    text-decoration: none;
+    background: rgb(15 118 110 / 0.08);
+    color: var(--primary-dark);
+  }
+
+  .docs-nav a.active {
+    background: rgb(15 118 110 / 0.14);
+    color: var(--primary-dark);
+    box-shadow: inset 0 0 0 1px rgb(15 118 110 / 0.12);
+  }
+
+  .docs-content {
+    display: grid;
+    gap: 22px;
+  }
+
+  .docs-section {
+    padding: 30px;
+    border-radius: 30px;
+    background: rgb(255 255 255 / 0.74);
+    border: 1px solid rgb(21 33 27 / 0.08);
+    box-shadow: var(--shadow);
+  }
+
+  .docs-section .section-kicker {
+    margin-bottom: 14px;
+  }
+
+  .docs-section h2 {
+    font-size: clamp(1.8rem, 3vw, 2.8rem);
+    margin-bottom: 14px;
+    color: var(--ink-950);
+  }
+
+  .docs-section p {
+    color: var(--ink-700);
+    font-size: 16px;
+    line-height: 1.7;
+  }
+
+  .step-grid,
+  .docs-two-col,
+  .trouble-grid {
+    display: grid;
+    gap: 16px;
+    margin-top: 18px;
+  }
+
+  .step-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .docs-two-col,
+  .trouble-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .doc-step,
+  .docs-card,
+  .trouble-card,
+  .docs-note {
+    padding: 20px;
+    border-radius: 22px;
+    border: 1px solid rgb(21 33 27 / 0.08);
+    background: rgb(247 242 233 / 0.72);
+  }
+
+  .doc-step {
+    display: flex;
+    gap: 14px;
+  }
+
+  .doc-step span {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: var(--accent-soft);
+    color: #8c4f21;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+
+  .doc-step h3,
+  .docs-card h3,
+  .trouble-card h3 {
+    font-size: 18px;
+    margin-bottom: 6px;
+    color: var(--ink-950);
+  }
+
+  .docs-list,
+  .docs-ordered {
+    margin-top: 14px;
+    padding-left: 22px;
+    color: var(--ink-700);
+    display: grid;
+    gap: 10px;
+  }
+
+  .docs-list.compact {
+    gap: 8px;
+  }
+
+  .docs-note {
+    margin-top: 18px;
+    color: var(--ink-800);
+    line-height: 1.7;
+  }
+
+  code {
+    padding: 2px 6px;
+    border-radius: 8px;
+    background: rgb(21 33 27 / 0.08);
+    font-size: 0.95em;
+  }
+
+  @media (max-width: 960px) {
+    .docs-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .docs-sidebar {
+      position: static;
+    }
+
+    .docs-nav-card {
+      overflow-x: auto;
+    }
+
+    .docs-nav {
+      grid-auto-flow: column;
+      grid-auto-columns: max-content;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .docs-hero-card,
+    .docs-section {
+      padding: 24px;
+    }
+
+    .step-grid,
+    .docs-two-col,
+    .trouble-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .docs-feature-strip {
+      margin-top: 18px;
+    }
+  }
+</style>

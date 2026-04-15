@@ -22,6 +22,19 @@ const store = new Map<string, LogEntry[]>();
 const originalLog = console.log;
 const originalWarn = console.warn;
 const originalError = console.error;
+let consolePatched = false;
+
+function stringifyArg(value: unknown): string {
+  if (typeof value !== "object" || value === null) {
+    return String(value);
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "[unserializable object]";
+  }
+}
 
 function addEntry(entry: LogEntry) {
   const reqId = entry.reqId as string | undefined;
@@ -46,8 +59,10 @@ function addEntry(entry: LogEntry) {
 
 // Patch console methods to capture structured output
 function patchConsole() {
+  if (consolePatched) return;
+
   const capture = (level: string) => (...args: unknown[]) => {
-    const str = args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ");
+    const str = args.map(stringifyArg).join(" ");
     try {
       const parsed = JSON.parse(str);
       addEntry({ ts: new Date().toISOString(), level, msg: parsed.msg || str, ...parsed });
@@ -59,6 +74,7 @@ function patchConsole() {
   console.log = (...args: unknown[]) => { originalLog(...args); capture("INFO")(...args); };
   console.warn = (...args: unknown[]) => { originalWarn(...args); capture("WARN")(...args); };
   console.error = (...args: unknown[]) => { originalError(...args); capture("ERROR")(...args); };
+  consolePatched = true;
 }
 
 export const logStore = {

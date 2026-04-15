@@ -33,7 +33,8 @@ function syncAuthCookie(pb: PocketBase): void {
 
 function normalizeDomain(input: string): string {
   const url = new URL(input);
-  return url.origin;
+  const pathname = url.pathname.replace(/\/+$/, "");
+  return `${url.protocol.toLowerCase()}//${url.host.toLowerCase()}${pathname}`;
 }
 
 function createEmptyState(message: string): HTMLDivElement {

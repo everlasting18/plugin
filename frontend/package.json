@@ -12,7 +12,6 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/node": "^10.0.4",
     "astro": "^6.1.5",
     "pocketbase": "^0.26.8"
   }
